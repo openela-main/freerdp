@@ -1,0 +1,34 @@
+From 403402607214092d20277af3aa959ce87768580a Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Fri, 12 Nov 2021 16:01:39 +0100
+Subject: [PATCH] Fixed #7436: Datatype mismatch
+
+---
+ libfreerdp/core/gateway/ncacn_http.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libfreerdp/core/gateway/ncacn_http.c b/libfreerdp/core/gateway/ncacn_http.c
+index f288a0f3c..75da83d62 100644
+--- a/libfreerdp/core/gateway/ncacn_http.c
++++ b/libfreerdp/core/gateway/ncacn_http.c
+@@ -105,7 +105,7 @@ BOOL rpc_ncacn_http_send_in_channel_request(RpcChannel* inChannel)
+ BOOL rpc_ncacn_http_recv_in_channel_response(RpcChannel* inChannel, HttpResponse* response)
+ {
+ 	const char* token64 = NULL;
+-	size_t ntlmTokenLength = 0;
++	int ntlmTokenLength = 0;
+ 	BYTE* ntlmTokenData = NULL;
+ 	rdpNtlm* ntlm;
+ 
+@@ -259,7 +259,7 @@ BOOL rpc_ncacn_http_send_out_channel_request(RpcChannel* outChannel, BOOL replac
+ BOOL rpc_ncacn_http_recv_out_channel_response(RpcChannel* outChannel, HttpResponse* response)
+ {
+ 	const char* token64 = NULL;
+-	size_t ntlmTokenLength = 0;
++	int ntlmTokenLength = 0;
+ 	BYTE* ntlmTokenData = NULL;
+ 	rdpNtlm* ntlm;
+ 
+-- 
+2.33.1
+

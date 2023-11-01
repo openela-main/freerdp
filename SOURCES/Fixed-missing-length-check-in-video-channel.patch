@@ -1,0 +1,29 @@
+From bf28ea249de57acc6dfadbd778afef2093c1c283 Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Thu, 6 Oct 2022 09:15:40 +0200
+Subject: [PATCH] Fixed missing length check in video channel
+
+Data received in video redirection channel was not checked for
+proper length.
+
+(cherry picked from commit eeffd1050e9284d1464b58e049b2b4d88726632b)
+---
+ channels/video/client/video_main.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/channels/video/client/video_main.c b/channels/video/client/video_main.c
+index a21e7cdf2..a8031fc86 100644
+--- a/channels/video/client/video_main.c
++++ b/channels/video/client/video_main.c
+@@ -930,6 +930,8 @@ static UINT video_data_on_data_received(IWTSVirtualChannelCallback* pChannelCall
+ 	Stream_Read_UINT16(s, data.PacketsInSample);
+ 	Stream_Read_UINT32(s, data.SampleNumber);
+ 	Stream_Read_UINT32(s, data.cbSample);
++	if (!Stream_CheckAndLogRequiredLength(TAG, s, data.cbSample))
++		return ERROR_INVALID_DATA;
+ 	data.pSample = Stream_Pointer(s);
+ 
+ 	/*
+-- 
+2.37.1
+
