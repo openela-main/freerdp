@@ -1,0 +1,315 @@
+From 3ee4cabcfad3a9ccc3c59be21245b57c17e7ae75 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 21 Jan 2021 14:21:09 +0100
+Subject: [PATCH 1/3] client: Fix exit codes for /help and similar option
+
+Currently, non-zero exit code is returned for /version, /buildconfig, /help,
+/monitor-list, /kbd-list and /kbd-lang-list command-line options for several
+clients. This is against conventions because 0 is usually returned in
+such cases. Also, there is potentially another problem that the returned
+codes overflow on UNIX systems (where the exit code is a number between 0
+and 255). Let's fix the clients to return 0 in the mentioned cases to honor
+conventions and 1 for the command-line parsing errors (or -1 for clients
+who already use that value).
+
+Fixes: https://github.com/FreeRDP/FreeRDP/issues/6686
+---
+ client/Sample/tf_freerdp.c    |  9 +++++----
+ client/Wayland/wlfreerdp.c    | 13 +++++++------
+ client/Windows/cli/wfreerdp.c |  4 ++++
+ client/X11/cli/xfreerdp.c     | 22 +++++++++++++---------
+ winpr/include/winpr/cmdline.h |  1 +
+ 5 files changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/client/Sample/tf_freerdp.c b/client/Sample/tf_freerdp.c
+index 3ba82c78338..49412cb417c 100644
+--- a/client/Sample/tf_freerdp.c
++++ b/client/Sample/tf_freerdp.c
+@@ -338,12 +338,13 @@ int main(int argc, char* argv[])
+ 		goto fail;
+ 
+ 	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE);
+-	status =
+-	    freerdp_client_settings_command_line_status_print(context->settings, status, argc, argv);
+-
+ 	if (status)
+ 	{
+-		rc = 0;
++		freerdp_client_settings_command_line_status_print(context->settings, status, argc, argv);
++
++		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
++			rc = 0;
++
+ 		goto fail;
+ 	}
+ 
+diff --git a/client/Wayland/wlfreerdp.c b/client/Wayland/wlfreerdp.c
+index 329d1200941..d77b47986ea 100644
+--- a/client/Wayland/wlfreerdp.c
++++ b/client/Wayland/wlfreerdp.c
+@@ -628,18 +628,19 @@ int main(int argc, char* argv[])
+ 	settings = context->settings;
+ 
+ 	status = freerdp_client_settings_parse_command_line(settings, argc, argv, FALSE);
+-	status = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+-
+ 	if (status)
+ 	{
+ 		BOOL list = settings->ListMonitors;
++
++		freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
++
+ 		if (list)
+ 			wlf_list_monitors(wlc);
+ 
+-		freerdp_client_context_free(context);
+-		if (list)
+-			return 0;
+-		return status;
++		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
++			rc = 0;
++
++		goto fail;
+ 	}
+ 
+ 	if (freerdp_client_start(context) != 0)
+diff --git a/client/Windows/cli/wfreerdp.c b/client/Windows/cli/wfreerdp.c
+index 7a76eeb9b59..b623067e98e 100644
+--- a/client/Windows/cli/wfreerdp.c
++++ b/client/Windows/cli/wfreerdp.c
+@@ -108,6 +108,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
+ 	if (status)
+ 	{
+ 		freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
++
++		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
++			rc = 0;
++
+ 		goto out;
+ 	}
+ 
+diff --git a/client/X11/cli/xfreerdp.c b/client/X11/cli/xfreerdp.c
+index c8a77f335f4..a3505b24d3c 100644
+--- a/client/X11/cli/xfreerdp.c
++++ b/client/X11/cli/xfreerdp.c
+@@ -34,6 +34,7 @@
+ 
+ int main(int argc, char* argv[])
+ {
++	int rc = 1;
+ 	int status;
+ 	HANDLE thread;
+ 	xfContext* xfc;
+@@ -56,31 +57,34 @@ int main(int argc, char* argv[])
+ 	xfc = (xfContext*)context;
+ 
+ 	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE);
+-
+-	status = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+-
+ 	if (status)
+ 	{
+ 		BOOL list = settings->ListMonitors;
++
++		freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
++
+ 		if (list)
+ 			xf_list_monitors(xfc);
+ 
+-		freerdp_client_context_free(context);
+-		if (list)
+-			return 0;
+-		return status;
++		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
++			rc = 0;
++
++		goto out;
+ 	}
+ 
+-	freerdp_client_start(context);
++	if (freerdp_client_start(context) != 0)
++		goto out;
+ 
+ 	thread = freerdp_client_get_thread(context);
+ 
+ 	WaitForSingleObject(thread, INFINITE);
+ 	GetExitCodeThread(thread, &dwExitCode);
++	rc = xf_exit_code_from_disconnect_reason(dwExitCode);
+ 
+ 	freerdp_client_stop(context);
+ 
++out:
+ 	freerdp_client_context_free(context);
+ 
+-	return xf_exit_code_from_disconnect_reason(dwExitCode);
++	return rc;
+ }
+diff --git a/winpr/include/winpr/cmdline.h b/winpr/include/winpr/cmdline.h
+index 865ee8f25c7..9276cda8eb1 100644
+--- a/winpr/include/winpr/cmdline.h
++++ b/winpr/include/winpr/cmdline.h
+@@ -81,6 +81,7 @@
+ #define COMMAND_LINE_STATUS_PRINT_HELP -2002
+ #define COMMAND_LINE_STATUS_PRINT_VERSION -2003
+ #define COMMAND_LINE_STATUS_PRINT_BUILDCONFIG -2004
++#define COMMAND_LINE_STATUS_PRINT_LAST -2999
+ 
+ /* Command-Line Macros */
+ 
+
+From 531dd81836f2c97fcfcfeabdb9671fb76409ce8d Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Fri, 22 Jan 2021 08:40:03 +0100
+Subject: [PATCH 2/3] Refactored
+ freerdp_client_settings_command_line_status_print_ex
+
+Now returns 0 if help or version information was requested.
+---
+ client/Sample/tf_freerdp.c    |  7 ++-----
+ client/Wayland/wlfreerdp.c    |  5 +----
+ client/Windows/cli/wfreerdp.c |  6 +-----
+ client/X11/cli/xfreerdp.c     |  5 +----
+ client/common/cmdline.c       | 14 +++++++++-----
+ 5 files changed, 14 insertions(+), 23 deletions(-)
+
+diff --git a/client/Sample/tf_freerdp.c b/client/Sample/tf_freerdp.c
+index 49412cb417c..e9b9fe8397e 100644
+--- a/client/Sample/tf_freerdp.c
++++ b/client/Sample/tf_freerdp.c
+@@ -340,11 +340,8 @@ int main(int argc, char* argv[])
+ 	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE);
+ 	if (status)
+ 	{
+-		freerdp_client_settings_command_line_status_print(context->settings, status, argc, argv);
+-
+-		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
+-			rc = 0;
+-
++		rc = freerdp_client_settings_command_line_status_print(context->settings, status, argc,
++		                                                       argv);
+ 		goto fail;
+ 	}
+ 
+diff --git a/client/Wayland/wlfreerdp.c b/client/Wayland/wlfreerdp.c
+index d77b47986ea..4a583068968 100644
+--- a/client/Wayland/wlfreerdp.c
++++ b/client/Wayland/wlfreerdp.c
+@@ -632,14 +632,11 @@ int main(int argc, char* argv[])
+ 	{
+ 		BOOL list = settings->ListMonitors;
+ 
+-		freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
++		rc = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+ 
+ 		if (list)
+ 			wlf_list_monitors(wlc);
+ 
+-		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
+-			rc = 0;
+-
+ 		goto fail;
+ 	}
+ 
+diff --git a/client/Windows/cli/wfreerdp.c b/client/Windows/cli/wfreerdp.c
+index b623067e98e..e325f84771f 100644
+--- a/client/Windows/cli/wfreerdp.c
++++ b/client/Windows/cli/wfreerdp.c
+@@ -107,11 +107,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
+ 
+ 	if (status)
+ 	{
+-		freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+-
+-		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
+-			rc = 0;
+-
++		ret = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+ 		goto out;
+ 	}
+ 
+diff --git a/client/X11/cli/xfreerdp.c b/client/X11/cli/xfreerdp.c
+index a3505b24d3c..5b702194448 100644
+--- a/client/X11/cli/xfreerdp.c
++++ b/client/X11/cli/xfreerdp.c
+@@ -61,14 +61,11 @@ int main(int argc, char* argv[])
+ 	{
+ 		BOOL list = settings->ListMonitors;
+ 
+-		freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
++		rc = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+ 
+ 		if (list)
+ 			xf_list_monitors(xfc);
+ 
+-		if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
+-			rc = 0;
+-
+ 		goto out;
+ 	}
+ 
+diff --git a/client/common/cmdline.c b/client/common/cmdline.c
+index ed467afb7d0..dc8367b7cd2 100644
+--- a/client/common/cmdline.c
++++ b/client/common/cmdline.c
+@@ -1403,14 +1403,14 @@ int freerdp_client_settings_command_line_status_print_ex(rdpSettings* settings,
+ 	if (status == COMMAND_LINE_STATUS_PRINT_VERSION)
+ 	{
+ 		freerdp_client_print_version();
+-		return COMMAND_LINE_STATUS_PRINT_VERSION;
++		goto out;
+ 	}
+ 
+ 	if (status == COMMAND_LINE_STATUS_PRINT_BUILDCONFIG)
+ 	{
+ 		freerdp_client_print_version();
+ 		freerdp_client_print_buildconfig();
+-		return COMMAND_LINE_STATUS_PRINT_BUILDCONFIG;
++		goto out;
+ 	}
+ 	else if (status == COMMAND_LINE_STATUS_PRINT)
+ 	{
+@@ -1465,15 +1465,19 @@ int freerdp_client_settings_command_line_status_print_ex(rdpSettings* settings,
+ 			settings->ListMonitors = TRUE;
+ 		}
+ 
+-		return COMMAND_LINE_STATUS_PRINT;
++		goto out;
+ 	}
+ 	else if (status < 0)
+ 	{
+ 		freerdp_client_print_command_line_help_ex(argc, argv, custom);
+-		return COMMAND_LINE_STATUS_PRINT_HELP;
++		status = COMMAND_LINE_STATUS_PRINT_HELP;
++		goto out;
+ 	}
+ 
+-	return 0;
++out:
++	if (status <= COMMAND_LINE_STATUS_PRINT && status >= COMMAND_LINE_STATUS_PRINT_LAST)
++		return 0;
++	return status;
+ }
+ 
+ static BOOL ends_with(const char* str, const char* ext)
+
+From 050a68fec901030c7428852f8f536ace055eb2f7 Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Fri, 22 Jan 2021 09:32:51 +0100
+Subject: [PATCH 3/3] Do not eliminate original error status.
+
+---
+ client/common/cmdline.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/client/common/cmdline.c b/client/common/cmdline.c
+index dc8367b7cd2..66d3c4fffef 100644
+--- a/client/common/cmdline.c
++++ b/client/common/cmdline.c
+@@ -1470,7 +1470,6 @@ int freerdp_client_settings_command_line_status_print_ex(rdpSettings* settings,
+ 	else if (status < 0)
+ 	{
+ 		freerdp_client_print_command_line_help_ex(argc, argv, custom);
+-		status = COMMAND_LINE_STATUS_PRINT_HELP;
+ 		goto out;
+ 	}
+ 
