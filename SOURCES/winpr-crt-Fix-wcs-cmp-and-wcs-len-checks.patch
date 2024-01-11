@@ -1,0 +1,90 @@
+From fb9d753af70b449dd7a17898d46fd57822a08dc1 Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Thu, 10 Nov 2022 14:21:22 +0100
+Subject: [PATCH] [winpr, crt] Fix wcs*cmp and wcs*len checks
+
+(cherry picked from commit b60fac1a0470fe83e8d0b448f0fd7e9e6d6a0f96)
+---
+ winpr/libwinpr/crt/string.c | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/winpr/libwinpr/crt/string.c b/winpr/libwinpr/crt/string.c
+index c25ffa279..5dcf4b3f1 100644
+--- a/winpr/libwinpr/crt/string.c
++++ b/winpr/libwinpr/crt/string.c
+@@ -26,6 +26,7 @@
+ #include <wctype.h>
+ 
+ #include <winpr/crt.h>
++#include <assert.h>
+ #include <winpr/endian.h>
+ 
+ /* String Manipulation (CRT): http://msdn.microsoft.com/en-us/library/f0151s4x.aspx */
+@@ -80,21 +81,28 @@ int _strnicmp(const char* string1, const char* string2, size_t count)
+ 
+ int _wcscmp(const WCHAR* string1, const WCHAR* string2)
+ {
+-	WCHAR value1, value2;
++	assert(string1);
++	assert(string2);
+ 
+-	while (*string1 && (*string1 == *string2))
++	while (TRUE)
+ 	{
+-		string1++;
+-		string2++;
++		const WCHAR w1 = *string1++;
++		const WCHAR w2 = *string2++;
++
++		if (w1 != w2)
++			return (int)w1 - w2;
++		else if ((w1 == '\0') || (w2 == '\0'))
++			return (int)w1 - w2;
+ 	}
+ 
+-	Data_Read_UINT16(string1, value1);
+-	Data_Read_UINT16(string2, value2);
+-	return (int)value1 - value2;
++	return 0;
+ }
+ 
+ int _wcsncmp(const WCHAR* string1, const WCHAR* string2, size_t count)
+ {
++	assert(string1);
++	assert(string2);
++
+ 	for (size_t x = 0; x < count; x++)
+ 	{
+ 		const WCHAR a = string1[x];
+@@ -102,6 +110,8 @@ int _wcsncmp(const WCHAR* string1, const WCHAR* string2, size_t count)
+ 
+ 		if (a != b)
+ 			return (int)a - b;
++		else if ((a == '\0') || (b == '\0'))
++			return (int)a - b;
+ 	}
+ 	return 0;
+ }
+@@ -112,8 +122,7 @@ size_t _wcslen(const WCHAR* str)
+ {
+ 	const WCHAR* p = (const WCHAR*)str;
+ 
+-	if (!p)
+-		return 0;
++	assert(p);
+ 
+ 	while (*p)
+ 		p++;
+@@ -127,8 +136,7 @@ size_t _wcsnlen(const WCHAR* str, size_t max)
+ {
+ 	size_t x;
+ 
+-	if (!str)
+-		return 0;
++	assert(str);
+ 
+ 	for (x = 0; x < max; x++)
+ 	{
+-- 
+2.37.1
+

@@ -1,0 +1,25 @@
+From 2ddb22f7a453f3429b3246ca8ffa1ff2c31fe71d Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Fri, 12 Nov 2021 11:24:38 +0100
+Subject: [PATCH] Fixed #7436: Datatype mismatch to crypto_base64_decode
+
+---
+ libfreerdp/core/gateway/rdg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/gateway/rdg.c b/libfreerdp/core/gateway/rdg.c
+index 72019ede8..44de2c137 100644
+--- a/libfreerdp/core/gateway/rdg.c
++++ b/libfreerdp/core/gateway/rdg.c
+@@ -1190,7 +1190,7 @@ static BOOL rdg_handle_ntlm_challenge(rdpNtlm* ntlm, HttpResponse* response)
+ 	BOOL continueNeeded = FALSE;
+ 	size_t len;
+ 	const char* token64 = NULL;
+-	size_t ntlmTokenLength = 0;
++	int ntlmTokenLength = 0;
+ 	BYTE* ntlmTokenData = NULL;
+ 	long StatusCode;
+ 
+-- 
+2.33.1
+
