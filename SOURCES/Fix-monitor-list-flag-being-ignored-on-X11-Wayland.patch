@@ -1,0 +1,49 @@
+From bf9bce2c3e6c716cc708716484124c1fb47cb531 Mon Sep 17 00:00:00 2001
+From: Max Roncace <me@caseif.net>
+Date: Wed, 24 Feb 2021 17:44:28 -0500
+Subject: [PATCH] Fix /monitor-list flag being ignored on X11/Wayland
+
+---
+ client/Wayland/wlfreerdp.c | 4 +++-
+ client/X11/cli/xfreerdp.c  | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/client/Wayland/wlfreerdp.c b/client/Wayland/wlfreerdp.c
+index aca734211..26c5452a5 100644
+--- a/client/Wayland/wlfreerdp.c
++++ b/client/Wayland/wlfreerdp.c
+@@ -651,10 +651,12 @@ int main(int argc, char* argv[])
+ 	status = freerdp_client_settings_parse_command_line(settings, argc, argv, FALSE);
+ 	if (status)
+ 	{
+-		BOOL list = settings->ListMonitors;
++		BOOL list;
+ 
+ 		rc = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+ 
++		list = settings->ListMonitors;
++
+ 		if (list)
+ 			wlf_list_monitors(wlc);
+ 
+diff --git a/client/X11/cli/xfreerdp.c b/client/X11/cli/xfreerdp.c
+index 5b7021944..786a7eb5d 100644
+--- a/client/X11/cli/xfreerdp.c
++++ b/client/X11/cli/xfreerdp.c
+@@ -59,10 +59,12 @@ int main(int argc, char* argv[])
+ 	status = freerdp_client_settings_parse_command_line(context->settings, argc, argv, FALSE);
+ 	if (status)
+ 	{
+-		BOOL list = settings->ListMonitors;
++		BOOL list;
+ 
+ 		rc = freerdp_client_settings_command_line_status_print(settings, status, argc, argv);
+ 
++		list = settings->ListMonitors;
++
+ 		if (list)
+ 			xf_list_monitors(xfc);
+ 
+-- 
+2.37.1
+

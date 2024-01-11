@@ -1,0 +1,146 @@
+From 4a4ecc32b160e93ee1e37e5617a0197e2d022643 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 4 Nov 2021 11:07:41 +0100
+Subject: [PATCH] Add checks for bitmap and glyph width/heigth values
+
+CVE-2021-41160
+
+https://github.com/FreeRDP/FreeRDP/pull/7349
+
+Signed-off-by: Felipe Borges <felipeborges@gnome.org>
+---
+ libfreerdp/core/orders.c  | 14 ++++++++++++
+ libfreerdp/core/surface.c | 45 +++++++++++++++++++++++++++++++++++++++
+ libfreerdp/core/update.c  |  7 ++++++
+ 3 files changed, 66 insertions(+)
+
+diff --git a/libfreerdp/core/orders.c b/libfreerdp/core/orders.c
+index 74870fae6..44d23a61a 100644
+--- a/libfreerdp/core/orders.c
++++ b/libfreerdp/core/orders.c
+@@ -1848,6 +1848,13 @@ static BOOL update_read_fast_glyph_order(wStream* s, const ORDER_INFO* orderInfo
+ 			new_cb = ((glyph->cx + 7) / 8) * glyph->cy;
+ 			new_cb += ((new_cb % 4) > 0) ? 4 - (new_cb % 4) : 0;
+ 
++			if ((glyph->cx == 0) || (glyph->cy == 0))
++			{
++				WLog_ERR(TAG, "GLYPH_DATA_V2::cx=%" PRIu32 ", GLYPH_DATA_V2::cy=%" PRIu32,
++				         glyph->cx, glyph->cy);
++				return FALSE;
++			}
++
+ 			if (fastGlyph->cbData < new_cb)
+ 				return FALSE;
+ 
+@@ -2825,6 +2832,13 @@ update_read_create_offscreen_bitmap_order(wStream* s,
+ 	Stream_Read_UINT16(s, create_offscreen_bitmap->cy); /* cy (2 bytes) */
+ 	deleteList = &(create_offscreen_bitmap->deleteList);
+ 
++	if ((create_offscreen_bitmap->cx == 0) || (create_offscreen_bitmap->cy == 0))
++	{
++		WLog_ERR(TAG, "Invalid OFFSCREEN_DELETE_LIST: cx=%" PRIu16 ", cy=%" PRIu16,
++		         create_offscreen_bitmap->cx, create_offscreen_bitmap->cy);
++		return FALSE;
++	}
++
+ 	if (deleteListPresent)
+ 	{
+ 		UINT32 i;
+diff --git a/libfreerdp/core/surface.c b/libfreerdp/core/surface.c
+index d5c709885..ca89d230c 100644
+--- a/libfreerdp/core/surface.c
++++ b/libfreerdp/core/surface.c
+@@ -21,6 +21,8 @@
+ #include "config.h"
+ #endif
+ 
++#include <assert.h>
++
+ #include <freerdp/utils/pcap.h>
+ #include <freerdp/log.h>
+ 
+@@ -62,6 +64,13 @@ static BOOL update_recv_surfcmd_bitmap_ex(wStream* s, TS_BITMAP_DATA_EX* bmp)
+ 	Stream_Read_UINT16(s, bmp->height);
+ 	Stream_Read_UINT32(s, bmp->bitmapDataLength);
+ 
++	if ((bmp->width == 0) || (bmp->height == 0))
++	{
++		WLog_ERR(TAG, "invalid size value width=%" PRIu16 ", height=%" PRIu16, bmp->width,
++		         bmp->height);
++		return FALSE;
++	}
++
+ 	if ((bmp->bpp < 1) || (bmp->bpp > 32))
+ 	{
+ 		WLog_ERR(TAG, "invalid bpp value %" PRIu32 "", bmp->bpp);
+@@ -85,6 +94,39 @@ static BOOL update_recv_surfcmd_bitmap_ex(wStream* s, TS_BITMAP_DATA_EX* bmp)
+ 	return TRUE;
+ }
+ 
++static BOOL update_recv_surfcmd_is_rect_valid(const rdpContext* context,
++                                              const SURFACE_BITS_COMMAND* cmd)
++{
++	assert(context);
++	assert(context->settings);
++	assert(cmd);
++
++	/* We need a rectangle with left/top being smaller than right/bottom.
++	 * Also do not allow empty rectangles. */
++	if ((cmd->destTop >= cmd->destBottom) || (cmd->destLeft >= cmd->destRight))
++	{
++		WLog_WARN(TAG,
++		          "Empty surface bits command rectangle: %" PRIu16 "x%" PRIu16 "-%" PRIu16
++		          "x%" PRIu16,
++		          cmd->destLeft, cmd->destTop, cmd->destRight, cmd->destBottom);
++		return FALSE;
++	}
++
++	/* The rectangle needs to fit into our session size */
++	if ((cmd->destRight > context->settings->DesktopWidth) ||
++	    (cmd->destBottom > context->settings->DesktopHeight))
++	{
++		WLog_WARN(TAG,
++		          "Invalid surface bits command rectangle: %" PRIu16 "x%" PRIu16 "-%" PRIu16
++		          "x%" PRIu16 " does not fit %" PRIu32 "x%" PRIu32,
++		          cmd->destLeft, cmd->destTop, cmd->destRight, cmd->destBottom,
++		          context->settings->DesktopWidth, context->settings->DesktopHeight);
++		return FALSE;
++	}
++
++	return TRUE;
++}
++
+ static BOOL update_recv_surfcmd_surface_bits(rdpUpdate* update, wStream* s, UINT16 cmdType)
+ {
+ 	SURFACE_BITS_COMMAND cmd = { 0 };
+@@ -98,6 +140,9 @@ static BOOL update_recv_surfcmd_surface_bits(rdpUpdate* update, wStream* s, UINT
+ 	Stream_Read_UINT16(s, cmd.destRight);
+ 	Stream_Read_UINT16(s, cmd.destBottom);
+ 
++	if (!update_recv_surfcmd_is_rect_valid(update->context, &cmd))
++		goto fail;
++
+ 	if (!update_recv_surfcmd_bitmap_ex(s, &cmd.bmp))
+ 		goto fail;
+ 
+diff --git a/libfreerdp/core/update.c b/libfreerdp/core/update.c
+index ebb82fc2d..e137c3de8 100644
+--- a/libfreerdp/core/update.c
++++ b/libfreerdp/core/update.c
+@@ -99,6 +99,13 @@ static BOOL update_read_bitmap_data(rdpUpdate* update, wStream* s, BITMAP_DATA*
+ 	Stream_Read_UINT16(s, bitmapData->flags);
+ 	Stream_Read_UINT16(s, bitmapData->bitmapLength);
+ 
++	if ((bitmapData->width == 0) || (bitmapData->height == 0))
++	{
++		WLog_ERR(TAG, "Invalid BITMAP_DATA: width=%" PRIu16 ", height=%" PRIu16, bitmapData->width,
++		         bitmapData->height);
++		return FALSE;
++	}
++
+ 	if (bitmapData->flags & BITMAP_COMPRESSION)
+ 	{
+ 		if (!(bitmapData->flags & NO_BITMAP_COMPRESSION_HDR))
+-- 
+2.32.0
+

@@ -1,0 +1,29 @@
+From 8c513f127549433c830575202d1551b0e9dd182d Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Thu, 13 Oct 2022 09:00:48 +0200
+Subject: [PATCH] Added missing length check in urb_control_transfer
+
+(cherry picked from commit ce838e2477cb8173ea5e98f35ad55ff41ea5117d)
+---
+ channels/urbdrc/client/data_transfer.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/channels/urbdrc/client/data_transfer.c b/channels/urbdrc/client/data_transfer.c
+index 9a44e6e09..bb2784055 100644
+--- a/channels/urbdrc/client/data_transfer.c
++++ b/channels/urbdrc/client/data_transfer.c
+@@ -673,7 +673,11 @@ static UINT urb_control_transfer(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callba
+ 	buffer = Stream_Pointer(out);
+ 
+ 	if (transferDir == USBD_TRANSFER_DIRECTION_OUT)
++	{
++		if (!Stream_CheckAndLogRequiredLength(TAG, s, OutputBufferSize))
++			return ERROR_INVALID_DATA;
+ 		Stream_Copy(s, out, OutputBufferSize);
++	}
+ 
+ 	/**  process TS_URB_CONTROL_TRANSFER */
+ 	if (!pdev->control_transfer(pdev, RequestId, EndpointAddress, TransferFlags, bmRequestType,
+-- 
+2.37.1
+
