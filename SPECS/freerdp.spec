@@ -1,10 +1,13 @@
-# Can be rebuilt with FFmpeg/H264 support enabled by passing "--with=ffmpeg",
-# "--with=x264" or "--with=openh264" to mock/rpmbuild; or by globally setting
-# these variables:
-
+# Can be rebuilt with FFmpeg/OpenH264 support enabled by passing
+# "--with=ffmpeg", or "--with=openh264" to mock/rpmbuild; or by globally
+# setting these variables:
+# https://bugzilla.redhat.com/show_bug.cgi?id=2242028
 #global _with_ffmpeg 1
-#global _with_x264 1
 #global _with_openh264 1
+
+# Can be rebuilt with OpenCL support enabled by passing # "--with=opencl"
+# or by globally setting:
+#global _opencl 1
 
 # Momentarily disable GSS support
 # https://github.com/FreeRDP/FreeRDP/issues/4348
@@ -12,7 +15,9 @@
 
 # Disable server support in RHEL
 # https://bugzilla.redhat.com/show_bug.cgi?id=1639165
-%{!?rhel:%global _with_server 1}
+%if 0%{?fedora} || 0%{?rhel} >= 10
+%global _with_server 1
+%endif
 
 # Disable support for missing codecs in RHEL
 %{!?rhel:%global _with_soxr 1}
@@ -21,43 +26,14 @@
 %endif
 
 Name:           freerdp
-Version:        2.4.1
-Release:        5%{?dist}
+Version:        2.11.2
+Release:        1%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
 URL:            http://www.freerdp.com/
 
 Source0:        https://github.com/FreeRDP/FreeRDP/archive/%{version}/FreeRDP-%{version}.tar.gz
-
-# https://github.com/FreeRDP/FreeRDP/issues/7436
-Patch0:         Fixed-7436-Datatype-mismatch-to-crypto_base64_decode.patch
-Patch1:         Fixed-7436-Datatype-mismatch.patch
-
-# https://github.com/FreeRDP/FreeRDP/pull/7448
-Patch2:         winpr-ssl-Load-legacy-provider-when-initializing-Ope.patch
-
-# https://bugzilla.redhat.com/show_bug.cgi?id=2023262
-Patch3:         Implement-BIO_CTRL_GET_KTLS_SEND-and-BIO_CTRL_GET_KT.patch
-
-# https://bugzilla.redhat.com/show_bug.cgi?id=2136152
-Patch4:         Fix-length-checks-in-parallel-driver.patch
-
-# https://bugzilla.redhat.com/show_bug.cgi?id=2136154
-Patch5:         Fixed-missing-length-check-in-video-channel.patch
-
-# https://bugzilla.redhat.com/show_bug.cgi?id=2145140
-Patch6:         Added-missing-length-checks-in-zgfx_decompress_segme.patch
-Patch7:         Fixed-division-by-zero-in-urbdrc.patch
-Patch8:         Added-missing-length-check-in-urb_control_transfer.patch
-Patch9:         Fixed-missing-input-buffer-length-check-in-urbdrc.patch
-Patch10:        Ensure-urb_create_iocompletion-uses-size_t-for-calcu.patch
-Patch11:        Added-function-_wcsncmp.patch
-Patch12:        winpr-crt-Fix-wcs-cmp-and-wcs-len-checks.patch
-Patch13:        winpr-crt-Added-wcsstr-implementation.patch
-Patch14:        Fixed-path-validation-in-drive-channel.patch
-Patch15:        Fixed-missing-stream-length-check-in-drive_file_quer.patch
-Patch16:        Fixed-format-string-for-Stream_CheckAndLogRequiredLe.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -78,6 +54,8 @@ BuildRequires:  libxkbfile-devel
 BuildRequires:  libXrandr-devel
 %{?_with_server:BuildRequires:  libXtst-devel}
 BuildRequires:  libXv-devel
+%{?_with_opencl:BuildRequires: opencl-headers >= 3.0}
+%{?_with_opencl:BuildRequires: ocl-icd-devel}
 %{?_with_openh264:BuildRequires:  openh264-devel}
 %{?_with_x264:BuildRequires:  x264-devel}
 %{?_with_server:BuildRequires:  pam-devel}
@@ -86,16 +64,6 @@ BuildRequires:  zlib-devel
 BuildRequires:  multilib-rpm-config
 
 BuildRequires:  pkgconfig(cairo)
-BuildRequires:  pkgconfig(dbus-1)
-BuildRequires:  pkgconfig(dbus-glib-1)
-BuildRequires:  pkgconfig(glib-2.0)
-BuildRequires:  pkgconfig(gstreamer-1.0)
-BuildRequires:  pkgconfig(gstreamer-base-1.0)
-BuildRequires:  pkgconfig(gstreamer-app-1.0)
-BuildRequires:  pkgconfig(gstreamer-audio-1.0)
-BuildRequires:  pkgconfig(gstreamer-fft-1.0)
-BuildRequires:  pkgconfig(gstreamer-pbutils-1.0)
-BuildRequires:  pkgconfig(gstreamer-video-1.0)
 %{?_with_gss:BuildRequires:  pkgconfig(krb5) >= 1.13}
 BuildRequires:  pkgconfig(libpcsclite)
 BuildRequires:  pkgconfig(libpulse)
@@ -193,15 +161,16 @@ find . -name "*.c" -exec chmod 664 {} \;
     -DWITH_CHANNELS=ON -DBUILTIN_CHANNELS=OFF \
     -DWITH_CLIENT=ON \
     -DWITH_DIRECTFB=OFF \
+    -DWITH_DSP_FFMPEG=%{?_with_ffmpeg:ON}%{?!_with_ffmpeg:OFF} \
     -DWITH_FFMPEG=%{?_with_ffmpeg:ON}%{?!_with_ffmpeg:OFF} \
     -DWITH_GSM=ON \
     -DWITH_GSSAPI=%{?_with_gss:ON}%{?!_with_gss:OFF} \
-    -DWITH_GSTREAMER_1_0=ON -DWITH_GSTREAMER_0_10=OFF \
     -DWITH_ICU=ON \
     -DWITH_IPP=OFF \
     -DWITH_JPEG=ON \
     -DWITH_LAME=%{?_with_lame:ON}%{?!_with_lame:OFF} \
     -DWITH_MANPAGES=ON \
+    -DWITH_OPENCL=%{?_with_opencl:ON}%{?!_with_opencl:OFF} \
     -DWITH_OPENH264=%{?_with_openh264:ON}%{?!_with_openh264:OFF} \
     -DWITH_OPENSSL=ON \
     -DWITH_PCSC=ON \
@@ -213,7 +182,6 @@ find . -name "*.c" -exec chmod 664 {} \;
     -DWITH_SOXR=%{?_with_soxr:ON}%{?!_with_soxr:OFF} \
     -DWITH_WAYLAND=ON \
     -DWITH_X11=ON \
-    -DWITH_X264=%{?_with_x264:ON}%{?!_with_x264:OFF} \
     -DWITH_XCURSOR=ON \
     -DWITH_XEXT=ON \
     -DWITH_XKBFILE=ON \
@@ -241,7 +209,7 @@ find . -name "*.c" -exec chmod 664 {} \;
     -DARM_FP_ABI=soft \
     -DWITH_NEON=OFF \
 %endif
-    .
+    %{nil}
 
 %cmake_build
 
@@ -324,6 +292,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Fri Nov 10 2023 Ondrej Holy <oholy@redhat.com> - 2:2.11.2-1
+- Update to 2.11.2 (RHEL-4290, RHEL-4292, RHEL-4296, RHEL-4298, RHEL-4300,
+  RHEL-4302, RHEL-4304, RHEL-4306, RHEL-4308, RHEL-4310, RHEL-4312,
+  RHEL-10060)
+
 * Tue Dec 13 2022 Ondrej Holy <oholy@redhat.com> - 2:2.4.1-5
 - Fix "implicit declaration of function" errors (#2136155, #2145140)
 
