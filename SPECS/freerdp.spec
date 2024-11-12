@@ -26,7 +26,7 @@
 %endif
 
 Name:           freerdp
-Version:        2.11.2
+Version:        2.11.7
 Release:        1%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
@@ -292,6 +292,14 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Thu May 09 2024 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1
+- Update to 2.11.7 (CVE-2024-32039, CVE-2024-32040, CVE-2024-32041,
+  CVE-2024-32458, CVE-2024-32459, CVE-2024-32460, CVE-2024-32658,
+  CVE-2024-32659, CVE-2024-32660, CVE-2024-32661, CVE-2024-32662)
+
+* Tue Mar 12 2024 Ondrej Holy <oholy@redhat.com> - 2:2.11.2-2
+- CVE-2024-22211: Check codec resolution for overflow (RHEL-22244)
+
 * Fri Nov 10 2023 Ondrej Holy <oholy@redhat.com> - 2:2.11.2-1
 - Update to 2.11.2 (RHEL-4290, RHEL-4292, RHEL-4296, RHEL-4298, RHEL-4300,
   RHEL-4302, RHEL-4304, RHEL-4306, RHEL-4308, RHEL-4310, RHEL-4312,
