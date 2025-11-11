@@ -1,0 +1,52 @@
+From 0e6c921b206259474b1c14bb26b183a8b2089cdb Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Fri, 12 Sep 2025 08:25:16 +0200
+Subject: [PATCH 082/100] [winpr,threadpool] default minimum thread count
+
+Set a default minimum of 4 threads in a pool. Avoids issues with system
+running with a single processor (might lead to deadlocks if the code
+assumes > 1 thread handling stuff)
+---
+ winpr/libwinpr/pool/CMakeLists.txt | 2 ++
+ winpr/libwinpr/pool/pool.c         | 9 +++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/winpr/libwinpr/pool/CMakeLists.txt b/winpr/libwinpr/pool/CMakeLists.txt
+index cfa9bc891..6b5938fd0 100644
+--- a/winpr/libwinpr/pool/CMakeLists.txt
++++ b/winpr/libwinpr/pool/CMakeLists.txt
+@@ -16,7 +16,9 @@
+ # limitations under the License.
+ 
+ set(WINPR_THREADPOOL_DEFAULT_MAX_COUNT "16" CACHE STRING "The maximum (default) number of threads in a pool")
++set(WINPR_THREADPOOL_DEFAULT_MIN_COUNT "4" CACHE STRING "The minimum (default) number of threads in a pool")
+ winpr_definition_add(WINPR_THREADPOOL_DEFAULT_MAX_COUNT=${WINPR_THREADPOOL_DEFAULT_MAX_COUNT})
++winpr_definition_add(WINPR_THREADPOOL_DEFAULT_MIN_COUNT=${WINPR_THREADPOOL_DEFAULT_MIN_COUNT})
+ winpr_module_add(
+   synch.c
+   work.c
+diff --git a/winpr/libwinpr/pool/pool.c b/winpr/libwinpr/pool/pool.c
+index 96db6b247..cbfc274c5 100644
+--- a/winpr/libwinpr/pool/pool.c
++++ b/winpr/libwinpr/pool/pool.c
+@@ -127,10 +127,15 @@ static BOOL InitializeThreadpool(PTP_POOL pool)
+ 	obj = ArrayList_Object(pool->Threads);
+ 	obj->fnObjectFree = threads_close;
+ 
++#if !defined(WINPR_THREADPOOL_DEFAULT_MIN_COUNT)
++#error "WINPR_THREADPOOL_DEFAULT_MIN_COUNT must be defined"
++#endif
++
+ 	SYSTEM_INFO info = { 0 };
+ 	GetSystemInfo(&info);
+-	if (info.dwNumberOfProcessors < 1)
+-		info.dwNumberOfProcessors = 1;
++	if (info.dwNumberOfProcessors < WINPR_THREADPOOL_DEFAULT_MIN_COUNT)
++		info.dwNumberOfProcessors = WINPR_THREADPOOL_DEFAULT_MIN_COUNT;
++
+ 	if (!SetThreadpoolThreadMinimum(pool, info.dwNumberOfProcessors))
+ 		goto fail;
+ 
+-- 
+2.51.0
+

@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        3%{?dist}
+Release:        5%{?dist}
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -49,6 +49,12 @@ Source1:        freerdp_download_and_repack.sh
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=2365232
 Patch0:         Initialize-function-pointers-after-resource-allocation.patch
+
+# https://issues.redhat.com/browse/RHEL-86251
+Patch1:         Limit-threadpool-to-16-threads.patch
+Patch2:         Use-default-threadpool.patch
+Patch3:         Default-minimum-thread-count.patch
+Patch4:         Limit-minimum-threadpool-size.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -372,6 +378,14 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue Sep 30 2025 Marek Kasik <mkasik@redhat.com> - 2:3.10.3-5
+- Silence abidiff
+- Resolves: RHEL-86251
+
+* Mon Sep 29 2025 Marek Kasik <mkasik@redhat.com> - 2:3.10.3-4
+- Limit threadpool to 16 threads
+- Resolves: RHEL-86251
+
 * Mon Jun 16 2025 Marek Kasik <mkasik@redhat.com> - 2:3.10.3-3
 - Initialize function pointers after resource allocation
 - Fixes CVE-2025-4478

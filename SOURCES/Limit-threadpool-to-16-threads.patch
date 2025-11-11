@@ -1,0 +1,60 @@
+From c2fc455d8f2dc60de35ed98cb300b7e6a84fe383 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 3 Sep 2025 14:03:10 +0200
+Subject: [PATCH 066/100] [winpr,pool] limit threadpool to 16 threads by
+ default
+
+Initialize the threadpool to minimum of number of processors and 16 by
+default.
+---
+ winpr/libwinpr/pool/CMakeLists.txt |  2 ++
+ winpr/libwinpr/pool/pool.c         | 13 +++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/winpr/libwinpr/pool/CMakeLists.txt b/winpr/libwinpr/pool/CMakeLists.txt
+index fb2dee58f..cfa9bc891 100644
+--- a/winpr/libwinpr/pool/CMakeLists.txt
++++ b/winpr/libwinpr/pool/CMakeLists.txt
+@@ -15,6 +15,8 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
++set(WINPR_THREADPOOL_DEFAULT_MAX_COUNT "16" CACHE STRING "The maximum (default) number of threads in a pool")
++winpr_definition_add(WINPR_THREADPOOL_DEFAULT_MAX_COUNT=${WINPR_THREADPOOL_DEFAULT_MAX_COUNT})
+ winpr_module_add(
+   synch.c
+   work.c
+diff --git a/winpr/libwinpr/pool/pool.c b/winpr/libwinpr/pool/pool.c
+index 39bbaaac9..96db6b247 100644
+--- a/winpr/libwinpr/pool/pool.c
++++ b/winpr/libwinpr/pool/pool.c
+@@ -133,7 +133,14 @@ static BOOL InitializeThreadpool(PTP_POOL pool)
+ 		info.dwNumberOfProcessors = 1;
+ 	if (!SetThreadpoolThreadMinimum(pool, info.dwNumberOfProcessors))
+ 		goto fail;
+-	SetThreadpoolThreadMaximum(pool, info.dwNumberOfProcessors);
++
++#if !defined(WINPR_THREADPOOL_DEFAULT_MAX_COUNT)
++#error "WINPR_THREADPOOL_DEFAULT_MAX_COUNT must be defined"
++#endif
++	DWORD max = info.dwNumberOfProcessors;
++	if (max > WINPR_THREADPOOL_DEFAULT_MAX_COUNT)
++		max = WINPR_THREADPOOL_DEFAULT_MAX_COUNT;
++	SetThreadpoolThreadMaximum(pool, max);
+ 
+ 	rc = TRUE;
+ 
+@@ -143,9 +150,7 @@ fail:
+ 
+ PTP_POOL GetDefaultThreadpool(void)
+ {
+-	PTP_POOL pool = NULL;
+-
+-	pool = &DEFAULT_POOL;
++	PTP_POOL pool = &DEFAULT_POOL;
+ 
+ 	if (!InitializeThreadpool(pool))
+ 		return NULL;
+-- 
+2.51.0
+

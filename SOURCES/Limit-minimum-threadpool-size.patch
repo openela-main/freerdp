@@ -1,0 +1,51 @@
+From 8fc7acbfd0a1892bc9237ae25e99d32270812dcc Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Mon, 29 Sep 2025 08:37:06 +0200
+Subject: [PATCH] [winpr,pool] limit minimum threadpool size
+
+---
+ winpr/libwinpr/pool/pool.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/winpr/libwinpr/pool/pool.c b/winpr/libwinpr/pool/pool.c
+index cbfc274c5..2cbe9a4fa 100644
+--- a/winpr/libwinpr/pool/pool.c
++++ b/winpr/libwinpr/pool/pool.c
+@@ -129,22 +129,26 @@ static BOOL InitializeThreadpool(PTP_POOL pool)
+ 
+ #if !defined(WINPR_THREADPOOL_DEFAULT_MIN_COUNT)
+ #error "WINPR_THREADPOOL_DEFAULT_MIN_COUNT must be defined"
++#endif
++#if !defined(WINPR_THREADPOOL_DEFAULT_MAX_COUNT)
++#error "WINPR_THREADPOOL_DEFAULT_MAX_COUNT must be defined"
+ #endif
+ 
+ 	SYSTEM_INFO info = { 0 };
+ 	GetSystemInfo(&info);
++
++	DWORD min = info.dwNumberOfProcessors;
++	DWORD max = info.dwNumberOfProcessors;
+ 	if (info.dwNumberOfProcessors < WINPR_THREADPOOL_DEFAULT_MIN_COUNT)
+-		info.dwNumberOfProcessors = WINPR_THREADPOOL_DEFAULT_MIN_COUNT;
++		min = WINPR_THREADPOOL_DEFAULT_MIN_COUNT;
++	if (info.dwNumberOfProcessors > WINPR_THREADPOOL_DEFAULT_MAX_COUNT)
++		max = WINPR_THREADPOOL_DEFAULT_MAX_COUNT;
++	if (min > max)
++		min = max;
+ 
+-	if (!SetThreadpoolThreadMinimum(pool, info.dwNumberOfProcessors))
++	if (!SetThreadpoolThreadMinimum(pool, min))
+ 		goto fail;
+ 
+-#if !defined(WINPR_THREADPOOL_DEFAULT_MAX_COUNT)
+-#error "WINPR_THREADPOOL_DEFAULT_MAX_COUNT must be defined"
+-#endif
+-	DWORD max = info.dwNumberOfProcessors;
+-	if (max > WINPR_THREADPOOL_DEFAULT_MAX_COUNT)
+-		max = WINPR_THREADPOOL_DEFAULT_MAX_COUNT;
+ 	SetThreadpoolThreadMaximum(pool, max);
+ 
+ 	rc = TRUE;
+-- 
+2.51.0
+
