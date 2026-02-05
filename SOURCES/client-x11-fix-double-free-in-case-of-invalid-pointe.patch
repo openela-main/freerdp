@@ -1,0 +1,53 @@
+From c0e85d92e45dff6c9a12e6af5be2e9ed10b4990c Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 22 Jan 2026 12:51:08 +0100
+Subject: [PATCH] [client,x11] fix double free in case of invalid pointer
+
+Backport of commit 0421b53fcb4a80c95f51342e4a2c40c68a4101d3.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ client/X11/xf_graphics.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/client/X11/xf_graphics.c b/client/X11/xf_graphics.c
+index 5aa1fd48b..d596b23da 100644
+--- a/client/X11/xf_graphics.c
++++ b/client/X11/xf_graphics.c
+@@ -406,7 +406,6 @@ static BOOL xf_Pointer_New(rdpContext* context, rdpPointer* pointer)
+ 	BOOL rc = FALSE;
+ #ifdef WITH_XCURSOR
+ 	UINT32 CursorFormat;
+-	size_t size;
+ 	xfContext* xfc = (xfContext*)context;
+ 	xfPointer* xpointer = (xfPointer*)pointer;
+ 
+@@ -421,19 +420,19 @@ static BOOL xf_Pointer_New(rdpContext* context, rdpPointer* pointer)
+ 	xpointer->nCursors = 0;
+ 	xpointer->mCursors = 0;
+ 
+-	size = 1ull * pointer->height * pointer->width * GetBytesPerPixel(CursorFormat);
++	const size_t size =
++	    1ull * pointer->height * pointer->width * GetBytesPerPixel(CursorFormat);
+ 
+-	if (!(xpointer->cursorPixels = (XcursorPixel*)_aligned_malloc(size, 16)))
++	xpointer->cursorPixels = (XcursorPixel*)_aligned_malloc(size, 16);
++	if (!xpointer->cursorPixels)
+ 		goto fail;
+ 
+ 	if (!freerdp_image_copy_from_pointer_data(
+ 	        (BYTE*)xpointer->cursorPixels, CursorFormat, 0, 0, 0, pointer->width, pointer->height,
+ 	        pointer->xorMaskData, pointer->lengthXorMask, pointer->andMaskData,
+ 	        pointer->lengthAndMask, pointer->xorBpp, &context->gdi->palette))
+-	{
+-		_aligned_free(xpointer->cursorPixels);
+-		return FALSE;
+-	}
++		goto fail;
++
+ 	rc = TRUE;
+ 
+ #endif
+-- 
+2.52.0
+

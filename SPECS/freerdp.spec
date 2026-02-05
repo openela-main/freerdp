@@ -27,13 +27,34 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        1%{?dist}
+Release:        1%{?dist}.1
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
 URL:            http://www.freerdp.com/
 
 Source0:        https://github.com/FreeRDP/FreeRDP/archive/%{version}/FreeRDP-%{version}.tar.gz
+
+# https://github.com/FreeRDP/FreeRDP/commit/c4a7c371342edf0d307cea728f56d3302f0ab38c
+Patch:          gdi-gfx-properly-clamp-SurfaceToSurface.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/c4391827d7facfc874ca7f61a92afb82232a5748
+Patch:          codec-clear-fix-clear_resize_buffer-checks.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/f8688b57f6cfad9a0b05475a6afbde355ffab720
+Patch:          codec-clear-fix-off-by-one-length-check.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/1bab198a2edd0d0e6e1627d21a433151ea190500
+Patch:          codec-planar-fix-decoder-length-checks.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/243ecf804bb122e8e643a5c142ad5a49d7aa19ee
+Patch:          codec-clear-check-clear_decomress-glyphData.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/0421b53fcb4a80c95f51342e4a2c40c68a4101d3
+Patch:          client-x11-fix-double-free-in-case-of-invalid-pointe.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/52106a26726a2aba77aa6d86014d2eb3507f0783
+Patch:          cache-offscreen-invalidate-bitmap-before-free.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -292,6 +313,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.1
+- Backport several CVE fixes
+  Resolves: RHEL-142426, RHEL-142410, RHEL-142394, RHEL-142378, RHEL-142362,
+  Resolves: RHEL-142346, RHEL-142330
+
 * Thu May 09 2024 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1
 - Update to 2.11.7 (CVE-2024-32039, CVE-2024-32040, CVE-2024-32041,
   CVE-2024-32458, CVE-2024-32459, CVE-2024-32460, CVE-2024-32658,
