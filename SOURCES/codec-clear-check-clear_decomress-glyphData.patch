@@ -1,0 +1,76 @@
+From 3a4ee3f0020977320066b99da16456b6364c1365 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 22 Jan 2026 12:50:22 +0100
+Subject: [PATCH] [codec,clear] check clear_decomress glyphData
+
+Backport of commit 243ecf804bb122e8e643a5c142ad5a49d7aa19ee.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ libfreerdp/codec/clear.c | 50 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index 4f0aead10..fcafb9235 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -1145,7 +1145,55 @@ INT32 clear_decompress(CLEAR_CONTEXT* clear, const BYTE* pSrcData, UINT32 SrcSiz
+ 
+ 	if (glyphData)
+ 	{
+-		if (!freerdp_image_copy(glyphData, clear->format, 0, 0, 0, nWidth, nHeight, pDstData,
++		uint32_t w = MIN(nWidth, nDstWidth);
++		if (nXDst > nDstWidth)
++		{
++			WLog_WARN(TAG, "glyphData copy area x exceeds destination: x=%" PRIu32 " > %" PRIu32,
++			          nXDst, nDstWidth);
++			w = 0;
++		}
++		else if (nXDst + w > nDstWidth)
++		{
++			WLog_WARN(TAG,
++			          "glyphData copy area x + width exceeds destination: x=%" PRIu32 " + %" PRIu32
++			          " > %" PRIu32,
++			          nXDst, w, nDstWidth);
++			w = nDstWidth - nXDst;
++		}
++
++		if (w != nWidth)
++		{
++			WLog_WARN(TAG,
++			          "glyphData copy area width truncated: requested=%" PRIu32
++			          ", truncated to %" PRIu32,
++			          nWidth, w);
++		}
++
++		uint32_t h = MIN(nHeight, nDstHeight);
++		if (nYDst > nDstHeight)
++		{
++			WLog_WARN(TAG, "glyphData copy area y exceeds destination: y=%" PRIu32 " > %" PRIu32,
++			          nYDst, nDstHeight);
++			h = 0;
++		}
++		else if (nYDst + h > nDstHeight)
++		{
++			WLog_WARN(TAG,
++			          "glyphData copy area y + height exceeds destination: x=%" PRIu32 " + %" PRIu32
++			          " > %" PRIu32,
++			          nYDst, h, nDstHeight);
++			h = nDstHeight - nYDst;
++		}
++
++		if (h != nHeight)
++		{
++			WLog_WARN(TAG,
++			          "glyphData copy area height truncated: requested=%" PRIu32
++			          ", truncated to %" PRIu32,
++			          nHeight, h);
++		}
++
++		if (!freerdp_image_copy(glyphData, clear->format, 0, 0, 0, w, h, pDstData,
+ 		                        DstFormat, nDstStep, nXDst, nYDst, palette, FREERDP_FLIP_NONE))
+ 			goto fail;
+ 	}
+-- 
+2.52.0
+

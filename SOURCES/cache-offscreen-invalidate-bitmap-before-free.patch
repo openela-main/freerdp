@@ -1,0 +1,46 @@
+From 4a4126380430a3517d1015b628475b816705ceb4 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 22 Jan 2026 12:52:16 +0100
+Subject: [PATCH] [cache,offscreen] invalidate bitmap before free
+
+Backport of commit 52106a26726a2aba77aa6d86014d2eb3507f0783.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ libfreerdp/cache/offscreen.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/libfreerdp/cache/offscreen.c b/libfreerdp/cache/offscreen.c
+index cdad56b4d..11e6caf21 100644
+--- a/libfreerdp/cache/offscreen.c
++++ b/libfreerdp/cache/offscreen.c
+@@ -160,7 +160,7 @@ void offscreen_cache_put(rdpOffscreenCache* offscreenCache, UINT32 index, rdpBit
+ 
+ void offscreen_cache_delete(rdpOffscreenCache* offscreenCache, UINT32 index)
+ {
+-	rdpBitmap* prevBitmap;
++	WINPR_ASSERT(offscreenCache);
+ 
+ 	if (index >= offscreenCache->maxEntries)
+ 	{
+@@ -168,10 +168,16 @@ void offscreen_cache_delete(rdpOffscreenCache* offscreenCache, UINT32 index)
+ 		return;
+ 	}
+ 
+-	prevBitmap = offscreenCache->entries[index];
++	rdpBitmap* prevBitmap = offscreenCache->entries[index];
+ 
+ 	if (prevBitmap != NULL)
++	{
++		WINPR_ASSERT(offscreenCache->update->context);
++
++		/* Ensure that the bitmap is no longer used in GDI */
++		IFCALL(prevBitmap->SetSurface, offscreenCache->update->context, NULL, FALSE);
+ 		Bitmap_Free(offscreenCache->update->context, prevBitmap);
++	}
+ 
+ 	offscreenCache->entries[index] = NULL;
+ }
+-- 
+2.52.0
+

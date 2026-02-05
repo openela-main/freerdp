@@ -1,0 +1,35 @@
+From 5b03db3926bd7bc1bf5819de068ed71a73b25236 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 22 Jan 2026 12:49:28 +0100
+Subject: [PATCH] [codec,clear] fix off by one length check
+
+Backport of commit f8688b57f6cfad9a0b05475a6afbde355ffab720.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ libfreerdp/codec/clear.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index 09f5dad6d..4f0aead10 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -881,11 +881,14 @@ static BOOL clear_decompress_bands_data(CLEAR_CONTEXT* clear, wStream* s, UINT32
+ 				if (count > nHeight)
+ 					count = nHeight;
+ 
+-				if (nXDstRel + i > nDstWidth)
++				if (nXDstRel + i >= nDstWidth)
+ 					return FALSE;
+ 
+ 				for (UINT32 y = 0; y < count; y++)
+ 				{
++					if (nYDstRel + y >= nDstHeight)
++						return FALSE;
++
+ 					BYTE* pDstPixel8 = &pDstData[((nYDstRel + y) * nDstStep) +
+ 					                             ((nXDstRel + i) * GetBytesPerPixel(DstFormat))];
+ 					UINT32 color = ReadColor(cpSrcPixel, clear->format);
+-- 
+2.52.0
+
