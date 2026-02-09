@@ -1,0 +1,31 @@
+From f8688b57f6cfad9a0b05475a6afbde355ffab720 Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Thu, 15 Jan 2026 12:19:53 +0100
+Subject: [PATCH] [codec,clear] fix off by one length check
+
+---
+ libfreerdp/codec/clear.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index 4a67a8ed6..0efa89f8d 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -876,12 +876,12 @@ static BOOL clear_decompress_bands_data(CLEAR_CONTEXT* WINPR_RESTRICT clear,
+ 				if (count > nHeight)
+ 					count = nHeight;
+ 
+-				if (nXDstRel + i > nDstWidth)
++				if (nXDstRel + i >= nDstWidth)
+ 					return FALSE;
+ 
+ 				for (UINT32 y = 0; y < count; y++)
+ 				{
+-					if (nYDstRel + y > nDstHeight)
++					if (nYDstRel + y >= nDstHeight)
+ 						return FALSE;
+ 
+ 					BYTE* pDstPixel8 =
+-- 
+2.52.0
+

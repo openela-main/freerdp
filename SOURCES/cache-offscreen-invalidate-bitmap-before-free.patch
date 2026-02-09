@@ -1,0 +1,45 @@
+From 52106a26726a2aba77aa6d86014d2eb3507f0783 Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Mon, 19 Jan 2026 08:58:22 +0100
+Subject: [PATCH] [cache,offscreen] invalidate bitmap before free
+
+First ensure the bitmap is no longer used for drawing before calling the
+free function.
+---
+ libfreerdp/cache/offscreen.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/libfreerdp/cache/offscreen.c b/libfreerdp/cache/offscreen.c
+index 91fa38f32..d3c85f95d 100644
+--- a/libfreerdp/cache/offscreen.c
++++ b/libfreerdp/cache/offscreen.c
+@@ -164,8 +164,6 @@ void offscreen_cache_put(rdpOffscreenCache* offscreenCache, UINT32 index, rdpBit
+ 
+ void offscreen_cache_delete(rdpOffscreenCache* offscreenCache, UINT32 index)
+ {
+-	rdpBitmap* prevBitmap = NULL;
+-
+ 	WINPR_ASSERT(offscreenCache);
+ 
+ 	if (index >= offscreenCache->maxEntries)
+@@ -174,10 +172,16 @@ void offscreen_cache_delete(rdpOffscreenCache* offscreenCache, UINT32 index)
+ 		return;
+ 	}
+ 
+-	prevBitmap = offscreenCache->entries[index];
++	rdpBitmap* prevBitmap = offscreenCache->entries[index];
+ 
+ 	if (prevBitmap != NULL)
++	{
++		WINPR_ASSERT(offscreenCache->context);
++
++		/* Ensure that the bitmap is no longer used in GDI */
++		IFCALL(prevBitmap->SetSurface, offscreenCache->context, NULL, FALSE);
+ 		Bitmap_Free(offscreenCache->context, prevBitmap);
++	}
+ 
+ 	offscreenCache->entries[index] = NULL;
+ }
+-- 
+2.52.0
+
