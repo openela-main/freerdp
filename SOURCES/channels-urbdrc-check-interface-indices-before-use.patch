@@ -1,0 +1,197 @@
+From 7b7e6de8fe427a2f01d331056774aec69710590b Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Sat, 10 Jan 2026 08:43:40 +0100
+Subject: [PATCH] [channels,urbdrc] check interface indices before use
+
+---
+ channels/urbdrc/client/data_transfer.c        |  6 +-
+ .../urbdrc/client/libusb/libusb_udevice.c     | 78 ++++++++++++-------
+ channels/urbdrc/common/msusb.c                |  6 +-
+ 3 files changed, 54 insertions(+), 36 deletions(-)
+
+diff --git a/channels/urbdrc/client/data_transfer.c b/channels/urbdrc/client/data_transfer.c
+index e2270e565..762fe0d31 100644
+--- a/channels/urbdrc/client/data_transfer.c
++++ b/channels/urbdrc/client/data_transfer.c
+@@ -454,14 +454,12 @@ static void func_select_all_interface_for_msconfig(IUDEVICE* pdev,
+                                                    MSUSB_CONFIG_DESCRIPTOR* MsConfig)
+ {
+ 	MSUSB_INTERFACE_DESCRIPTOR** MsInterfaces = MsConfig->MsInterfaces;
+-	BYTE InterfaceNumber = 0;
+-	BYTE AlternateSetting = 0;
+ 	UINT32 NumInterfaces = MsConfig->NumInterfaces;
+ 
+ 	for (UINT32 inum = 0; inum < NumInterfaces; inum++)
+ 	{
+-		InterfaceNumber = MsInterfaces[inum]->InterfaceNumber;
+-		AlternateSetting = MsInterfaces[inum]->AlternateSetting;
++		const BYTE InterfaceNumber = MsInterfaces[inum]->InterfaceNumber;
++		const BYTE AlternateSetting = MsInterfaces[inum]->AlternateSetting;
+ 		pdev->select_interface(pdev, InterfaceNumber, AlternateSetting);
+ 	}
+ }
+diff --git a/channels/urbdrc/client/libusb/libusb_udevice.c b/channels/urbdrc/client/libusb/libusb_udevice.c
+index afc7f11c6..aa5639f09 100644
+--- a/channels/urbdrc/client/libusb/libusb_udevice.c
++++ b/channels/urbdrc/client/libusb/libusb_udevice.c
+@@ -582,25 +582,13 @@ static MSUSB_CONFIG_DESCRIPTOR*
+ libusb_udev_complete_msconfig_setup(IUDEVICE* idev, MSUSB_CONFIG_DESCRIPTOR* MsConfig)
+ {
+ 	UDEVICE* pdev = (UDEVICE*)idev;
+-	MSUSB_INTERFACE_DESCRIPTOR** MsInterfaces = NULL;
+-	MSUSB_INTERFACE_DESCRIPTOR* MsInterface = NULL;
+-	MSUSB_PIPE_DESCRIPTOR** MsPipes = NULL;
+-	MSUSB_PIPE_DESCRIPTOR* MsPipe = NULL;
+-	MSUSB_PIPE_DESCRIPTOR** t_MsPipes = NULL;
+-	MSUSB_PIPE_DESCRIPTOR* t_MsPipe = NULL;
+-	LIBUSB_CONFIG_DESCRIPTOR* LibusbConfig = NULL;
+-	const LIBUSB_INTERFACE* LibusbInterface = NULL;
+-	const LIBUSB_INTERFACE_DESCRIPTOR* LibusbAltsetting = NULL;
+-	const LIBUSB_ENDPOINT_DESCEIPTOR* LibusbEndpoint = NULL;
+-	BYTE LibusbNumEndpoint = 0;
+-	URBDRC_PLUGIN* urbdrc = NULL;
+ 	UINT32 MsOutSize = 0;
+ 
+ 	if (!pdev || !pdev->LibusbConfig || !pdev->urbdrc || !MsConfig)
+ 		return NULL;
+ 
+-	urbdrc = pdev->urbdrc;
+-	LibusbConfig = pdev->LibusbConfig;
++	URBDRC_PLUGIN* urbdrc = pdev->urbdrc;
++	LIBUSB_CONFIG_DESCRIPTOR* LibusbConfig = pdev->LibusbConfig;
+ 
+ 	if (LibusbConfig->bNumInterfaces != MsConfig->NumInterfaces)
+ 	{
+@@ -608,28 +596,57 @@ libusb_udev_complete_msconfig_setup(IUDEVICE* idev, MSUSB_CONFIG_DESCRIPTOR* MsC
+ 		           "Select Configuration: Libusb NumberInterfaces(%" PRIu8 ") is different "
+ 		           "with MsConfig NumberInterfaces(%" PRIu32 ")",
+ 		           LibusbConfig->bNumInterfaces, MsConfig->NumInterfaces);
++		return NULL;
+ 	}
+ 
+ 	/* replace MsPipes for libusb */
+-	MsInterfaces = MsConfig->MsInterfaces;
++	MSUSB_INTERFACE_DESCRIPTOR** MsInterfaces = MsConfig->MsInterfaces;
+ 
+ 	for (UINT32 inum = 0; inum < MsConfig->NumInterfaces; inum++)
+ 	{
+-		MsInterface = MsInterfaces[inum];
++		MSUSB_INTERFACE_DESCRIPTOR* MsInterface = MsInterfaces[inum];
++		if (MsInterface->InterfaceNumber >= MsConfig->NumInterfaces)
++		{
++			WLog_Print(urbdrc->log, WLOG_ERROR,
++			           "MSUSB_CONFIG_DESCRIPTOR::NumInterfaces (%" PRIu32
++			           " <= MSUSB_INTERFACE_DESCRIPTOR::InterfaceNumber( %" PRIu8 ")",
++			           MsConfig->NumInterfaces, MsInterface->InterfaceNumber);
++			return NULL;
++		}
++
++		const LIBUSB_INTERFACE* LibusbInterface =
++		    &LibusbConfig->interface[MsInterface->InterfaceNumber];
++		if (MsInterface->AlternateSetting >= LibusbInterface->num_altsetting)
++		{
++			WLog_Print(urbdrc->log, WLOG_ERROR,
++			           "LIBUSB_INTERFACE::num_altsetting (%" PRId32
++			           " <= MSUSB_INTERFACE_DESCRIPTOR::AlternateSetting( %" PRIu8 ")",
++			           LibusbInterface->num_altsetting, MsInterface->AlternateSetting);
++			return NULL;
++		}
++	}
++
++	for (UINT32 inum = 0; inum < MsConfig->NumInterfaces; inum++)
++	{
++		MSUSB_INTERFACE_DESCRIPTOR* MsInterface = MsInterfaces[inum];
++
+ 		/* get libusb's number of endpoints */
+-		LibusbInterface = &LibusbConfig->interface[MsInterface->InterfaceNumber];
+-		LibusbAltsetting = &LibusbInterface->altsetting[MsInterface->AlternateSetting];
+-		LibusbNumEndpoint = LibusbAltsetting->bNumEndpoints;
+-		t_MsPipes =
++		const LIBUSB_INTERFACE* LibusbInterface =
++		    &LibusbConfig->interface[MsInterface->InterfaceNumber];
++		const LIBUSB_INTERFACE_DESCRIPTOR* LibusbAltsetting =
++		    &LibusbInterface->altsetting[MsInterface->AlternateSetting];
++		const BYTE LibusbNumEndpoint = LibusbAltsetting->bNumEndpoints;
++		MSUSB_PIPE_DESCRIPTOR** t_MsPipes =
+ 		    (MSUSB_PIPE_DESCRIPTOR**)calloc(LibusbNumEndpoint, sizeof(MSUSB_PIPE_DESCRIPTOR*));
+ 
+ 		for (UINT32 pnum = 0; pnum < LibusbNumEndpoint; pnum++)
+ 		{
+-			t_MsPipe = (MSUSB_PIPE_DESCRIPTOR*)calloc(1, sizeof(MSUSB_PIPE_DESCRIPTOR));
++			MSUSB_PIPE_DESCRIPTOR* t_MsPipe =
++			    (MSUSB_PIPE_DESCRIPTOR*)calloc(1, sizeof(MSUSB_PIPE_DESCRIPTOR));
+ 
+ 			if (pnum < MsInterface->NumberOfPipes && MsInterface->MsPipes)
+ 			{
+-				MsPipe = MsInterface->MsPipes[pnum];
++				MSUSB_PIPE_DESCRIPTOR* MsPipe = MsInterface->MsPipes[pnum];
+ 				t_MsPipe->MaximumPacketSize = MsPipe->MaximumPacketSize;
+ 				t_MsPipe->MaximumTransferSize = MsPipe->MaximumTransferSize;
+ 				t_MsPipe->PipeFlags = MsPipe->PipeFlags;
+@@ -668,10 +685,12 @@ libusb_udev_complete_msconfig_setup(IUDEVICE* idev, MSUSB_CONFIG_DESCRIPTOR* MsC
+ 	for (UINT32 inum = 0; inum < MsConfig->NumInterfaces; inum++)
+ 	{
+ 		MsOutSize += 16;
+-		MsInterface = MsInterfaces[inum];
++		MSUSB_INTERFACE_DESCRIPTOR* MsInterface = MsInterfaces[inum];
+ 		/* get libusb's interface */
+-		LibusbInterface = &LibusbConfig->interface[MsInterface->InterfaceNumber];
+-		LibusbAltsetting = &LibusbInterface->altsetting[MsInterface->AlternateSetting];
++		const LIBUSB_INTERFACE* LibusbInterface =
++		    &LibusbConfig->interface[MsInterface->InterfaceNumber];
++		const LIBUSB_INTERFACE_DESCRIPTOR* LibusbAltsetting =
++		    &LibusbInterface->altsetting[MsInterface->AlternateSetting];
+ 		/* InterfaceHandle:  4 bytes
+ 		 * ---------------------------------------------------------------
+ 		 * ||<<< 1 byte >>>|<<< 1 byte >>>|<<< 1 byte >>>|<<< 1 byte >>>||
+@@ -688,15 +707,16 @@ libusb_udev_complete_msconfig_setup(IUDEVICE* idev, MSUSB_CONFIG_DESCRIPTOR* MsC
+ 		MsInterface->bInterfaceSubClass = LibusbAltsetting->bInterfaceSubClass;
+ 		MsInterface->bInterfaceProtocol = LibusbAltsetting->bInterfaceProtocol;
+ 		MsInterface->InitCompleted = 1;
+-		MsPipes = MsInterface->MsPipes;
+-		LibusbNumEndpoint = LibusbAltsetting->bNumEndpoints;
++		MSUSB_PIPE_DESCRIPTOR** MsPipes = MsInterface->MsPipes;
++		const BYTE LibusbNumEndpoint = LibusbAltsetting->bNumEndpoints;
+ 
+ 		for (UINT32 pnum = 0; pnum < LibusbNumEndpoint; pnum++)
+ 		{
+ 			MsOutSize += 20;
+-			MsPipe = MsPipes[pnum];
++
++			MSUSB_PIPE_DESCRIPTOR* MsPipe = MsPipes[pnum];
+ 			/* get libusb's endpoint */
+-			LibusbEndpoint = &LibusbAltsetting->endpoint[pnum];
++			const LIBUSB_ENDPOINT_DESCEIPTOR* LibusbEndpoint = &LibusbAltsetting->endpoint[pnum];
+ 			/* PipeHandle:  4 bytes
+ 			 * ---------------------------------------------------------------
+ 			 * ||<<< 1 byte >>>|<<< 1 byte >>>|<<<<<<<<<< 2 byte >>>>>>>>>>>||
+diff --git a/channels/urbdrc/common/msusb.c b/channels/urbdrc/common/msusb.c
+index 8d6809741..1b6e29aeb 100644
+--- a/channels/urbdrc/common/msusb.c
++++ b/channels/urbdrc/common/msusb.c
+@@ -134,6 +134,8 @@ BOOL msusb_msinterface_replace(MSUSB_CONFIG_DESCRIPTOR* MsConfig, BYTE Interface
+ {
+ 	if (!MsConfig || !MsConfig->MsInterfaces)
+ 		return FALSE;
++	if (MsConfig->NumInterfaces <= InterfaceNumber)
++		return FALSE;
+ 
+ 	msusb_msinterface_free(MsConfig->MsInterfaces[InterfaceNumber]);
+ 	MsConfig->MsInterfaces[InterfaceNumber] = NewMsInterface;
+@@ -142,12 +144,10 @@ BOOL msusb_msinterface_replace(MSUSB_CONFIG_DESCRIPTOR* MsConfig, BYTE Interface
+ 
+ MSUSB_INTERFACE_DESCRIPTOR* msusb_msinterface_read(wStream* s)
+ {
+-	MSUSB_INTERFACE_DESCRIPTOR* MsInterface = NULL;
+-
+ 	if (!Stream_CheckAndLogRequiredCapacity(TAG, (s), 12))
+ 		return NULL;
+ 
+-	MsInterface = msusb_msinterface_new();
++	MSUSB_INTERFACE_DESCRIPTOR* MsInterface = msusb_msinterface_new();
+ 
+ 	if (!MsInterface)
+ 		return NULL;
+-- 
+2.52.0
+

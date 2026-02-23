@@ -1,0 +1,69 @@
+From 19f48dc7d615984a24a9be89f50ef9eb8f9bdb6a Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Mon, 12 Jan 2026 15:02:53 +0100
+Subject: [PATCH] [channels,rdpear] add checks for itemSize
+
+when a ndr read function is called with invalid arguments abort early.
+---
+ channels/rdpear/common/ndr.c | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/channels/rdpear/common/ndr.c b/channels/rdpear/common/ndr.c
+index d0bd6d959..ddb15a340 100644
+--- a/channels/rdpear/common/ndr.c
++++ b/channels/rdpear/common/ndr.c
+@@ -518,6 +518,9 @@ BOOL ndr_read_uconformant_varying_array(NdrContext* context, wStream* s,
+ 	WINPR_ASSERT(itemType);
+ 	WINPR_ASSERT(ptarget);
+ 
++	if (itemType->itemSize == 0)
++		return FALSE;
++
+ 	UINT32 maxCount = 0;
+ 	UINT32 offset = 0;
+ 	UINT32 length = 0;
+@@ -526,10 +529,10 @@ BOOL ndr_read_uconformant_varying_array(NdrContext* context, wStream* s,
+ 	    !ndr_read_uint32(context, s, &length))
+ 		return FALSE;
+ 
+-	if ((length * itemType->itemSize) < hints->length)
++	if ((1ull * length * itemType->itemSize) > hints->length)
+ 		return FALSE;
+ 
+-	if ((maxCount * itemType->itemSize) < hints->maxLength)
++	if ((1ull * maxCount * itemType->itemSize) > hints->maxLength)
+ 		return FALSE;
+ 
+ 	BYTE* target = (BYTE*)ptarget;
+@@ -552,6 +555,9 @@ BOOL ndr_write_uconformant_varying_array(NdrContext* context, wStream* s,
+ 	WINPR_ASSERT(itemType);
+ 	WINPR_ASSERT(psrc);
+ 
++	if (itemType->itemSize == 0)
++		return FALSE;
++
+ 	if (!ndr_write_uint32(context, s, hints->maxLength) || !ndr_write_uint32(context, s, 0) ||
+ 	    !ndr_write_uint32(context, s, hints->length))
+ 		return FALSE;
+@@ -581,8 +587,16 @@ BOOL ndr_read_uconformant_array(NdrContext* context, wStream* s, const NdrArrayH
+ 	if (!ndr_read_uint32(context, s, &count))
+ 		return FALSE;
+ 
+-	if ((count * itemType->itemSize < hints->count))
+-		return FALSE;
++	if (itemType->arity == NDR_ARITY_SIMPLE)
++	{
++		if (count > hints->count)
++			return FALSE;
++	}
++	else
++	{
++		if ((1ull * count * itemType->itemSize) > hints->count)
++			return FALSE;
++	}
+ 
+ 	BYTE* target = (BYTE*)vtarget;
+ 	for (UINT32 i = 0; i < count; i++, target += itemType->itemSize)
+-- 
+2.52.0
+

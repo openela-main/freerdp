@@ -1,0 +1,27 @@
+From f3ab1a16139036179d9852745fdade18fec11600 Mon Sep 17 00:00:00 2001
+From: akallabeth <akallabeth@posteo.net>
+Date: Mon, 26 Jan 2026 10:54:33 +0100
+Subject: [PATCH] [channels,rdpecam] ensure all streams are stopped
+
+When closing the channel ensure there are no more streams running.
+---
+ channels/rdpecam/client/camera_device_main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/channels/rdpecam/client/camera_device_main.c b/channels/rdpecam/client/camera_device_main.c
+index b76a37ca8..9ba3c65c5 100644
+--- a/channels/rdpecam/client/camera_device_main.c
++++ b/channels/rdpecam/client/camera_device_main.c
+@@ -789,6 +789,9 @@ static UINT ecam_dev_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ 
+ 	WLog_DBG(TAG, "entered");
+ 
++	for (size_t i = 0; i < ECAM_DEVICE_MAX_STREAMS; i++)
++		ecam_dev_stop_stream(dev, i);
++
+ 	/* make sure this channel is not used for sample responses */
+ 	for (size_t i = 0; i < ECAM_DEVICE_MAX_STREAMS; i++)
+ 		if (dev->streams[i].hSampleReqChannel == hchannel)
+-- 
+2.52.0
+

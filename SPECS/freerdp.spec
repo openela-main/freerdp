@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        5%{?dist}.1
+Release:        5%{?dist}.2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -76,6 +76,26 @@ Patch:          client-x11-fix-double-free-in-case-of-invalid-pointe.patch
 
 # https://github.com/FreeRDP/FreeRDP/commit/52106a26726a2aba77aa6d86014d2eb3507f0783
 Patch:          cache-offscreen-invalidate-bitmap-before-free.patch
+
+# CVE-2026-22853
+# https://github.com/FreeRDP/FreeRDP/commit/19f48dc7d615984a24a9be89f50ef9eb8f9bdb6a
+Patch:          channels-rdpear-add-checks-for-itemSize.patch
+
+# CVE-2026-22855
+# https://github.com/FreeRDP/FreeRDP/commit/57c5647d98c2a026de8b681159cb188ca0439ef8
+Patch:          utils-smartcard-add-length-validity-checks.patch
+
+# CVE-2026-22858
+# https://github.com/FreeRDP/FreeRDP/commit/62a9e787edb2cfce9858fa4ceda5461680efc590
+Patch:          crypto-base64-ensure-char-is-singend.patch
+
+# CVE-2026-22859
+# https://github.com/FreeRDP/FreeRDP/commit/7b7e6de8fe427a2f01d331056774aec69710590b
+Patch:          channels-urbdrc-check-interface-indices-before-use.patch
+
+# CVE-2026-24678
+# https://github.com/FreeRDP/FreeRDP/commit/f3ab1a16139036179d9852745fdade18fec11600
+Patch:          channels-rdpecam-ensure-all-streams-are-stopped.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -399,6 +419,10 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.2
+- Backport several CVE fixes
+  Resolves: RHEL-147912, RHEL-148815, RHEL-148859, RHEL-148892, RHEL-148973
+
 * Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.1
 - Backport several CVE fixes
   Resolves: RHEL-142413, RHEL-142397, RHEL-142381, RHEL-142365, RHEL-142349
