@@ -1,0 +1,70 @@
+From f8453bda5069314d271973eff69dc2e04f6df980 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 17 Feb 2026 13:01:37 +0100
+Subject: [PATCH] [channels,urbdrc] check interface indices before use
+
+Backport of commit 7b7e6de8fe427a2f01d331056774aec69710590b (functional changes only).
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+---
+ .../urbdrc/client/libusb/libusb_udevice.c     | 25 +++++++++++++++++++
+ channels/urbdrc/common/msusb.c                |  2 ++
+ 2 files changed, 27 insertions(+)
+
+diff --git a/channels/urbdrc/client/libusb/libusb_udevice.c b/channels/urbdrc/client/libusb/libusb_udevice.c
+index ef87f195f..b2d80243b 100644
+--- a/channels/urbdrc/client/libusb/libusb_udevice.c
++++ b/channels/urbdrc/client/libusb/libusb_udevice.c
+@@ -597,11 +597,36 @@ libusb_udev_complete_msconfig_setup(IUDEVICE* idev, MSUSB_CONFIG_DESCRIPTOR* MsC
+ 		           "Select Configuration: Libusb NumberInterfaces(%" PRIu8 ") is different "
+ 		           "with MsConfig NumberInterfaces(%" PRIu32 ")",
+ 		           LibusbConfig->bNumInterfaces, MsConfig->NumInterfaces);
++		return NULL;
+ 	}
+ 
+ 	/* replace MsPipes for libusb */
+ 	MsInterfaces = MsConfig->MsInterfaces;
+ 
++	/* check interface indices before use */
++	for (inum = 0; inum < MsConfig->NumInterfaces; inum++)
++	{
++		MsInterface = MsInterfaces[inum];
++		if (MsInterface->InterfaceNumber >= MsConfig->NumInterfaces)
++		{
++			WLog_Print(urbdrc->log, WLOG_ERROR,
++			           "MSUSB_CONFIG_DESCRIPTOR::NumInterfaces (%" PRIu32
++			           " <= MSUSB_INTERFACE_DESCRIPTOR::InterfaceNumber( %" PRIu8 ")",
++			           MsConfig->NumInterfaces, MsInterface->InterfaceNumber);
++			return NULL;
++		}
++
++		LibusbInterface = &LibusbConfig->interface[MsInterface->InterfaceNumber];
++		if (MsInterface->AlternateSetting >= LibusbInterface->num_altsetting)
++		{
++			WLog_Print(urbdrc->log, WLOG_ERROR,
++			           "LIBUSB_INTERFACE::num_altsetting (%" PRId32
++			           " <= MSUSB_INTERFACE_DESCRIPTOR::AlternateSetting( %" PRIu8 ")",
++			           LibusbInterface->num_altsetting, MsInterface->AlternateSetting);
++			return NULL;
++		}
++	}
++
+ 	for (inum = 0; inum < MsConfig->NumInterfaces; inum++)
+ 	{
+ 		MsInterface = MsInterfaces[inum];
+diff --git a/channels/urbdrc/common/msusb.c b/channels/urbdrc/common/msusb.c
+index bb517ce5d..113b7c96b 100644
+--- a/channels/urbdrc/common/msusb.c
++++ b/channels/urbdrc/common/msusb.c
+@@ -139,6 +139,8 @@ BOOL msusb_msinterface_replace(MSUSB_CONFIG_DESCRIPTOR* MsConfig, BYTE Interface
+ {
+ 	if (!MsConfig || !MsConfig->MsInterfaces)
+ 		return FALSE;
++	if (MsConfig->NumInterfaces <= InterfaceNumber)
++		return FALSE;
+ 
+ 	msusb_msinterface_free(MsConfig->MsInterfaces[InterfaceNumber]);
+ 	MsConfig->MsInterfaces[InterfaceNumber] = NewMsInterface;
+-- 
+2.52.0
+
