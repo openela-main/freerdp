@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        2%{?dist}
+Release:        3%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -59,6 +59,18 @@ Patch6:         client-x11-fix-double-free-in-case-of-invalid-pointe.patch
 
 # https://github.com/FreeRDP/FreeRDP/commit/52106a26726a2aba77aa6d86014d2eb3507f0783
 Patch7:         cache-offscreen-invalidate-bitmap-before-free.patch
+
+# CVE-2026-22855
+# https://github.com/FreeRDP/FreeRDP/commit/57c5647d98c2a026de8b681159cb188ca0439ef8
+Patch8:         utils-smartcard-add-length-validity-checks.patch
+
+# CVE-2026-22858
+# https://github.com/FreeRDP/FreeRDP/commit/62a9e787edb2cfce9858fa4ceda5461680efc590
+Patch9:         crypto-base64-ensure-char-is-singend.patch
+
+# CVE-2026-22859
+# https://github.com/FreeRDP/FreeRDP/commit/7b7e6de8fe427a2f01d331056774aec69710590b
+Patch10:        channels-urbdrc-check-interface-indices-before-use.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -317,6 +329,10 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-3
+- Backport several CVE fixes
+  Resolves: RHEL-148825, RHEL-148865, RHEL-148982
+
 * Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-2
 - Backport several CVE fixes
   Resolves: RHEL-142417, RHEL-142401, RHEL-142385, RHEL-142369, RHEL-142353

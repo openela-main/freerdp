@@ -1,0 +1,30 @@
+From 7e1759c739002dc95d8f15672d0f700ca8dcce0e Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 17 Feb 2026 14:23:29 +0100
+Subject: [PATCH] [crypto,base64] ensure char is singend
+
+Backport of commit 62a9e787edb2cfce9858fa4ceda5461680efc590.
+
+Co-Authored-By: Cursor <cursoragent@cursor.com>
+---
+ libfreerdp/crypto/base64.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libfreerdp/crypto/base64.c b/libfreerdp/crypto/base64.c
+index 5a5da89a4..c084de38e 100644
+--- a/libfreerdp/crypto/base64.c
++++ b/libfreerdp/crypto/base64.c
+@@ -93,6 +93,10 @@ char* crypto_base64_encode(const BYTE* data, int length)
+ 
+ static int base64_decode_char(char c)
+ {
++	/* ensure char is signed for this check */
++	if ((int)c <= '\0')
++		return -1;
++
+ 	if (c >= 'A' && c <= 'Z')
+ 		return c - 'A';
+ 
+-- 
+2.52.0
+
