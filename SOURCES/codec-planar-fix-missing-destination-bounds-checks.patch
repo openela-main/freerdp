@@ -1,0 +1,55 @@
+From 867763b853ea3efdffb3bba0b182890bef994974 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Mon, 9 Mar 2026 12:50:26 +0100
+Subject: [PATCH] [codec,planar] fix missing destination bounds checks
+
+Backport of commit a0be5cb87d760bb1c803ad1bb835aa1e73e62abc.
+
+Made-with: Cursor
+---
+ libfreerdp/codec/planar.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/planar.c b/libfreerdp/codec/planar.c
+index 5df607051..58efbc627 100644
+--- a/libfreerdp/codec/planar.c
++++ b/libfreerdp/codec/planar.c
+@@ -727,8 +727,9 @@ BOOL planar_decompress(BITMAP_PLANAR_CONTEXT* WINPR_RESTRICT planar,
+ 	if (planar->maxHeight < nSrcHeight)
+ 		return FALSE;
+ 
++	const UINT32 bpp = FreeRDPGetBytesPerPixel(DstFormat);
+ 	if (nDstStep <= 0)
+-		nDstStep = nDstWidth * FreeRDPGetBytesPerPixel(DstFormat);
++		nDstStep = nDstWidth * bpp;
+ 
+ 	srcp = pSrcData;
+ 
+@@ -948,6 +949,24 @@ BOOL planar_decompress(BITMAP_PLANAR_CONTEXT* WINPR_RESTRICT planar,
+ 		}
+ 		else /* RLE */
+ 		{
++			if (nYDst + nSrcHeight > nTotalHeight)
++			{
++				WLog_ERR(TAG,
++				         "planar plane destination Y %" PRIu32 " + height %" PRIu32
++				         " exceeds totalHeight %" PRIu32,
++				         nYDst, nSrcHeight, nTotalHeight);
++				return FALSE;
++			}
++
++			if ((nXDst + nSrcWidth) * bpp > nDstStep)
++			{
++				WLog_ERR(TAG,
++				         "planar plane destination (X %" PRIu32 " + width %" PRIu32
++				         ") * bpp %" PRIu32 " exceeds stride %" PRIu32,
++				         nXDst, nSrcWidth, bpp, nDstStep);
++				return FALSE;
++			}
++
+ 			status =
+ 			    planar_decompress_plane_rle(planes[0], rleSizes[0], pTempData, nTempStep, nXDst,
+ 			                                nYDst, nSrcWidth, nSrcHeight, 2, vFlip); /* RedPlane */
+-- 
+2.53.0
+

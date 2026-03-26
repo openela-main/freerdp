@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        5%{?dist}.2
+Release:        5%{?dist}.3
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -96,6 +96,14 @@ Patch:          channels-urbdrc-check-interface-indices-before-use.patch
 # CVE-2026-24678
 # https://github.com/FreeRDP/FreeRDP/commit/f3ab1a16139036179d9852745fdade18fec11600
 Patch:          channels-rdpecam-ensure-all-streams-are-stopped.patch
+
+# CVE-2026-26955
+# https://github.com/FreeRDP/FreeRDP/commit/7d8fdce2d0ef337cb86cb37fc0c436c905e04d77
+Patch:          codec-clear-fix-destination-checks.patch
+
+# CVE-2026-26965
+# https://github.com/FreeRDP/FreeRDP/commit/a0be5cb87d760bb1c803ad1bb835aa1e73e62abc
+Patch:          codec-planar-fix-missing-destination-bounds-checks.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -419,6 +427,10 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.3
+- Backport several CVE fixes
+  Resolves: RHEL-151975, RHEL-152202
+
 * Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.2
 - Backport several CVE fixes
   Resolves: RHEL-147912, RHEL-148815, RHEL-148859, RHEL-148892, RHEL-148973
