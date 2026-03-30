@@ -1,0 +1,41 @@
+From 7178a5554d7147a47fb7a85bba8c681f59e2a714 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Mon, 9 Mar 2026 13:55:29 +0100
+Subject: [PATCH] [codec,clear] fix destination checks
+
+Backport of commit 7d8fdce2d0ef337cb86cb37fc0c436c905e04d77.
+
+Made-with: Cursor
+---
+ libfreerdp/codec/clear.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index a989a9bff..4dbe72376 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -494,15 +494,16 @@ static BOOL clear_decompress_subcodecs_data(CLEAR_CONTEXT* clear, wStream* s,
+ 		nXDstRel = nXDst + xStart;
+ 		nYDstRel = nYDst + yStart;
+ 
+-		if (width > nWidth)
++		if (1ull * nXDstRel + width > nDstWidth)
+ 		{
+-			WLog_ERR(TAG, "width %" PRIu16 " > nWidth %" PRIu32 "", width, nWidth);
++			WLog_ERR(TAG, "nXDstRel %" PRIu32 " + width %" PRIu16 " > nDstWidth %" PRIu32 "",
++			         nXDstRel, width, nDstWidth);
+ 			return FALSE;
+ 		}
+-
+-		if (height > nHeight)
++		if (1ull * nYDstRel + height > nDstHeight)
+ 		{
+-			WLog_ERR(TAG, "height %" PRIu16 " > nHeight %" PRIu32 "", height, nHeight);
++			WLog_ERR(TAG, "nYDstRel %" PRIu32 " + height %" PRIu16 " > nDstHeight %" PRIu32 "",
++			         nYDstRel, height, nDstHeight);
+ 			return FALSE;
+ 		}
+ 
+-- 
+2.53.0
+
