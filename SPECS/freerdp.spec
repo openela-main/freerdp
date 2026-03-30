@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        3%{?dist}
+Release:        4%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -71,6 +71,14 @@ Patch9:         crypto-base64-ensure-char-is-singend.patch
 # CVE-2026-22859
 # https://github.com/FreeRDP/FreeRDP/commit/7b7e6de8fe427a2f01d331056774aec69710590b
 Patch10:        channels-urbdrc-check-interface-indices-before-use.patch
+
+# CVE-2026-26955
+# https://github.com/FreeRDP/FreeRDP/commit/7d8fdce2d0ef337cb86cb37fc0c436c905e04d77
+Patch11:        codec-clear-fix-destination-checks.patch
+
+# CVE-2026-26965
+# https://github.com/FreeRDP/FreeRDP/commit/a0be5cb87d760bb1c803ad1bb835aa1e73e62abc
+Patch12:        codec-planar-fix-missing-destination-bounds-checks.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -329,6 +337,10 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-4
+- Backport several CVE fixes
+  Resolves: RHEL-151979, RHEL-152206
+
 * Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-3
 - Backport several CVE fixes
   Resolves: RHEL-148825, RHEL-148865, RHEL-148982
