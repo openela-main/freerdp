@@ -1,0 +1,31 @@
+From aaad4718d80b0354fd807d680b12390075fe4fa0 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Wed, 11 Mar 2026 12:27:47 +0100
+Subject: [PATCH] [channels,urbdrc] do not free MsConfig on failure
+
+Backport of commit d676518809c319eec15911c705c13536036af2ae.
+
+Made-with: Cursor
+---
+ channels/urbdrc/client/data_transfer.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/channels/urbdrc/client/data_transfer.c b/channels/urbdrc/client/data_transfer.c
+index ed6ccf32d..c547d52d7 100644
+--- a/channels/urbdrc/client/data_transfer.c
++++ b/channels/urbdrc/client/data_transfer.c
+@@ -570,10 +570,8 @@ static UINT urb_select_interface(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callba
+ 	MsConfig = pdev->get_MsConfig(pdev);
+ 	InterfaceNumber = MsInterface->InterfaceNumber;
+ 	if (!msusb_msinterface_replace(MsConfig, InterfaceNumber, MsInterface))
+-	{
+-		msusb_msconfig_free(MsConfig);
+ 		return ERROR_BAD_CONFIGURATION;
+-	}
++
+ 	/* complete configuration setup */
+ 	if (!pdev->complete_msconfig_setup(pdev, MsConfig))
+ 	{
+-- 
+2.53.0
+

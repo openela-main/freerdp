@@ -1,0 +1,71 @@
+From 6a329a9a1352c9461a3a85e55d84230106b19500 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 10 Mar 2026 14:53:29 +0100
+Subject: [PATCH] [core,info] fix missing NULL check
+
+Backport of commit 4d44e3c097656a8b9ec696353647b0888ca45860.
+
+Made-with: Cursor
+---
+ libfreerdp/core/info.c | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/libfreerdp/core/info.c b/libfreerdp/core/info.c
+index 9aaa6cff6..56676f0fb 100644
+--- a/libfreerdp/core/info.c
++++ b/libfreerdp/core/info.c
+@@ -24,6 +24,7 @@
+ #endif
+ 
+ #include <winpr/crt.h>
++#include <winpr/assert.h>
+ #include <freerdp/crypto/crypto.h>
+ #include <freerdp/log.h>
+ #include <freerdp/session.h>
+@@ -1363,10 +1364,11 @@ static BOOL rdp_write_logon_info_v1(wStream* s, logon_info* info)
+ 	return TRUE;
+ }
+ 
+-static BOOL rdp_write_logon_info_v2(wStream* s, logon_info* info)
++static BOOL rdp_write_logon_info_v2(wStream* s, const logon_info* info)
+ {
+ 	UINT32 Size = 2 + 4 + 4 + 4 + 4 + 558;
+-	size_t domainLen, usernameLen;
++	size_t domainLen = 0;
++	size_t usernameLen = 0;
+ 	int len;
+ 	WCHAR* wString = NULL;
+ 
+@@ -1376,11 +1378,13 @@ static BOOL rdp_write_logon_info_v2(wStream* s, logon_info* info)
+ 	Stream_Write_UINT16(s, SAVE_SESSION_PDU_VERSION_ONE);
+ 	Stream_Write_UINT32(s, Size);
+ 	Stream_Write_UINT32(s, info->sessionId);
+-	domainLen = strlen(info->domain);
++	if (info->domain)
++		domainLen = strlen(info->domain);
+ 	if (domainLen > UINT32_MAX)
+ 		return FALSE;
+ 	Stream_Write_UINT32(s, (UINT32)(domainLen + 1) * 2);
+-	usernameLen = strlen(info->username);
++	if (info->username)
++		usernameLen = strlen(info->username);
+ 	if (usernameLen > UINT32_MAX)
+ 		return FALSE;
+ 	Stream_Write_UINT32(s, (UINT32)(usernameLen + 1) * 2);
+@@ -1457,10 +1461,11 @@ static BOOL rdp_write_logon_info_ex(wStream* s, logon_info_ex* info)
+ 
+ BOOL rdp_send_save_session_info(rdpContext* context, UINT32 type, void* data)
+ {
+-	wStream* s;
+ 	BOOL status;
++
++	WINPR_ASSERT(context);
+ 	rdpRdp* rdp = context->rdp;
+-	s = rdp_data_pdu_init(rdp);
++	wStream* s = rdp_data_pdu_init(rdp);
+ 
+ 	if (!s)
+ 		return FALSE;
+-- 
+2.53.0
+

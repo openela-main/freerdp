@@ -1,0 +1,36 @@
+From d25ffd608bf2bd38022a3930d0b3fc1b7c873c1a Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Sat, 28 Mar 2026 12:13:06 +0100
+Subject: [PATCH] [gdi,graphics] Use freerdp_glyph_convert_ex
+
+Backport of commit 9f0eb3b7d43069a1e973464bcb43d1ef965ae65e.
+
+Made-with: Cursor
+---
+ libfreerdp/gdi/graphics.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/libfreerdp/gdi/graphics.c b/libfreerdp/gdi/graphics.c
+index dab159c43..b1129fb7c 100644
+--- a/libfreerdp/gdi/graphics.c
++++ b/libfreerdp/gdi/graphics.c
+@@ -262,7 +262,6 @@ static BYTE* freerdp_glyph_convert_ex(UINT32 width, UINT32 height, const BYTE* d
+ 
+ static BOOL gdi_Glyph_New(rdpContext* context, const rdpGlyph* glyph)
+ {
+-	BYTE* data;
+ 	gdiGlyph* gdi_glyph;
+ 
+ 	if (!context || !glyph)
+@@ -275,7 +274,7 @@ static BOOL gdi_Glyph_New(rdpContext* context, const rdpGlyph* glyph)
+ 		return FALSE;
+ 
+ 	gdi_glyph->hdc->format = PIXEL_FORMAT_MONO;
+-	data = freerdp_glyph_convert(glyph->cx, glyph->cy, glyph->aj);
++	BYTE* data = freerdp_glyph_convert_ex(glyph->cx, glyph->cy, glyph->aj, glyph->cb);
+ 
+ 	if (!data)
+ 	{
+-- 
+2.53.0
+

@@ -1,0 +1,132 @@
+From 6bf4e2558861e06fd68ef8036796ff475a1c23fa Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Fri, 13 Mar 2026 15:24:09 +0100
+Subject: [PATCH] [channels,ainput] lock context when updating listener
+
+Backport of commit d9ca272dce7a776ab475e9b1a8e8c3d2968c8486.
+
+Made-with: Cursor
+---
+ channels/ainput/client/ainput_main.c | 38 ++++++++++++++++++++--------
+ 1 file changed, 27 insertions(+), 11 deletions(-)
+
+diff --git a/channels/ainput/client/ainput_main.c b/channels/ainput/client/ainput_main.c
+index d8eb8ec59..ff901d2a0 100644
+--- a/channels/ainput/client/ainput_main.c
++++ b/channels/ainput/client/ainput_main.c
+@@ -28,6 +28,7 @@
+ #include <winpr/crt.h>
+ #include <winpr/assert.h>
+ #include <winpr/stream.h>
++#include <winpr/synch.h>
+ #include <winpr/sysinfo.h>
+ 
+ #include "ainput_main.h"
+@@ -69,6 +70,7 @@ struct AINPUT_PLUGIN_
+ 	UINT32 MajorVersion;
+ 	UINT32 MinorVersion;
+ 	BOOL initialized;
++	CRITICAL_SECTION lock;
+ };
+ 
+ /**
+@@ -109,10 +111,7 @@ static UINT ainput_on_data_received(IWTSVirtualChannelCallback* pChannelCallback
+ 
+ static UINT ainput_send_input_event(AInputClientContext* context, UINT64 flags, INT32 x, INT32 y)
+ {
+-	AINPUT_PLUGIN* ainput;
+-	AINPUT_CHANNEL_CALLBACK* callback;
+ 	BYTE buffer[32] = { 0 };
+-	UINT64 time;
+ 	wStream sbuffer = { 0 };
+ 	wStream* s = &sbuffer;
+ 
+@@ -121,8 +120,8 @@ static UINT ainput_send_input_event(AInputClientContext* context, UINT64 flags,
+ 	WINPR_ASSERT(s);
+ 	WINPR_ASSERT(context);
+ 
+-	time = GetTickCount64();
+-	ainput = (AINPUT_PLUGIN*)context->handle;
++	const UINT64 time = GetTickCount64();
++	AINPUT_PLUGIN* ainput = (AINPUT_PLUGIN*)context->handle;
+ 	WINPR_ASSERT(ainput);
+ 	WINPR_ASSERT(ainput->listener_callback);
+ 
+@@ -132,8 +131,6 @@ static UINT ainput_send_input_event(AInputClientContext* context, UINT64 flags,
+ 		          ainput->MajorVersion, ainput->MinorVersion);
+ 		return CHANNEL_RC_UNSUPPORTED_VERSION;
+ 	}
+-	callback = ainput->listener_callback->channel_callback;
+-	WINPR_ASSERT(callback);
+ 
+ 	{
+ 		char buffer[128] = { 0 };
+@@ -152,10 +149,15 @@ static UINT ainput_send_input_event(AInputClientContext* context, UINT64 flags,
+ 	Stream_SealLength(s);
+ 
+ 	/* ainput back what we have received. AINPUT does not have any message IDs. */
++	EnterCriticalSection(&ainput->lock);
++	AINPUT_CHANNEL_CALLBACK* callback = ainput->listener_callback->channel_callback;
++	WINPR_ASSERT(callback);
+ 	WINPR_ASSERT(callback->channel);
+ 	WINPR_ASSERT(callback->channel->Write);
+-	return callback->channel->Write(callback->channel, (ULONG)Stream_Length(s), Stream_Buffer(s),
+-	                                NULL);
++	const UINT rc = callback->channel->Write(callback->channel, (ULONG)Stream_Length(s),
++	                                         Stream_Buffer(s), NULL);
++	LeaveCriticalSection(&ainput->lock);
++	return rc;
+ }
+ 
+ /**
+@@ -167,8 +169,16 @@ static UINT ainput_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ {
+ 	AINPUT_CHANNEL_CALLBACK* callback = (AINPUT_CHANNEL_CALLBACK*)pChannelCallback;
+ 
+-	free(callback);
++	if (callback)
++	{
++		AINPUT_PLUGIN* ainput = (AINPUT_PLUGIN*)callback->plugin;
++		WINPR_ASSERT(ainput);
+ 
++		/* Lock here to ensure that no ainput_send_input_event is in progress. */
++		EnterCriticalSection(&ainput->lock);
++		free(callback);
++		LeaveCriticalSection(&ainput->lock);
++	}
+ 	return CHANNEL_RC_OK;
+ }
+ 
+@@ -255,6 +265,7 @@ static UINT ainput_plugin_initialize(IWTSPlugin* pPlugin, IWTSVirtualChannelMana
+ static UINT ainput_plugin_terminated(IWTSPlugin* pPlugin)
+ {
+ 	AINPUT_PLUGIN* ainput = (AINPUT_PLUGIN*)pPlugin;
++
+ 	if (ainput && ainput->listener_callback)
+ 	{
+ 		IWTSVirtualChannelManager* mgr = ainput->listener_callback->channel_mgr;
+@@ -263,6 +274,7 @@ static UINT ainput_plugin_terminated(IWTSPlugin* pPlugin)
+ 	}
+ 	if (ainput)
+ 	{
++		DeleteCriticalSection(&ainput->lock);
+ 		free(ainput->listener_callback);
+ 		free(ainput->iface.pInterface);
+ 	}
+@@ -306,8 +318,12 @@ UINT DVCPluginEntry(IDRDYNVC_ENTRY_POINTS* pEntryPoints)
+ 
+ 		context->handle = (void*)ainput;
+ 		context->AInputSendInputEvent = ainput_send_input_event;
+-		ainput->iface.pInterface = (void*)context;
+ 
++		InitializeCriticalSection(&ainput->lock);
++
++		EnterCriticalSection(&ainput->lock);
++		ainput->iface.pInterface = (void*)context;
++		LeaveCriticalSection(&ainput->lock);
+ 		status = pEntryPoints->RegisterPlugin(pEntryPoints, AINPUT_CHANNEL_NAME, &ainput->iface);
+ 	}
+ 
+-- 
+2.53.0
+

@@ -1,0 +1,117 @@
+From b96bfa485a286335bcb4c698fa6490fb4a98b9e6 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Fri, 13 Mar 2026 15:47:11 +0100
+Subject: [PATCH] [channel,rdpsnd] only clean up thread before free
+
+Backport of commit afa6851dc80835d3101e40fcef51b6c5c0f43ea5.
+
+Made-with: Cursor
+---
+ channels/rdpsnd/client/rdpsnd_main.c | 37 ++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/channels/rdpsnd/client/rdpsnd_main.c b/channels/rdpsnd/client/rdpsnd_main.c
+index c7660a857..576e065d2 100644
+--- a/channels/rdpsnd/client/rdpsnd_main.c
++++ b/channels/rdpsnd/client/rdpsnd_main.c
+@@ -133,6 +133,8 @@ struct rdpsnd_plugin
+ 	BOOL applyVolume;
+ };
+ 
++static DWORD WINAPI play_thread(LPVOID arg);
++
+ static const char* rdpsnd_is_dyn_str(BOOL dynamic)
+ {
+ 	if (dynamic)
+@@ -1267,7 +1269,6 @@ static void cleanup_internals(rdpsndPlugin* rdpsnd)
+ 	if (!rdpsnd)
+ 		return;
+ 
+-	rdpsnd_terminate_thread(rdpsnd);
+ 	if (rdpsnd->pool)
+ 		StreamPool_Return(rdpsnd->pool, rdpsnd->data_in);
+ 
+@@ -1331,6 +1332,7 @@ static void free_internals(rdpsndPlugin* rdpsnd)
+ 	if (!rdpsnd)
+ 		return;
+ 
++	rdpsnd_terminate_thread(rdpsnd);
+ 	freerdp_dsp_context_free(rdpsnd->dsp_context);
+ 	StreamPool_Free(rdpsnd->pool);
+ 	rdpsnd->pool = NULL;
+@@ -1353,6 +1355,23 @@ static BOOL allocate_internals(rdpsndPlugin* rdpsnd)
+ 			return FALSE;
+ 	}
+ 
++	if (!rdpsnd->queue)
++	{
++		wObject obj = { 0 };
++
++		obj.fnObjectFree = _queue_free;
++		rdpsnd->queue = MessageQueue_New(&obj);
++		if (!rdpsnd->queue)
++			return FALSE;
++	}
++
++	if (!rdpsnd->thread)
++	{
++		rdpsnd->thread = CreateThread(NULL, 0, play_thread, rdpsnd, 0, NULL);
++		if (!rdpsnd->thread)
++			return FALSE;
++	}
++
+ 	return TRUE;
+ }
+ 
+@@ -1391,23 +1410,12 @@ static DWORD WINAPI play_thread(LPVOID arg)
+ 
+ static UINT rdpsnd_virtual_channel_event_initialized(rdpsndPlugin* rdpsnd)
+ {
+-	wObject obj = { 0 };
+-
+ 	if (!rdpsnd)
+ 		return ERROR_INVALID_PARAMETER;
+ 
+-	obj.fnObjectFree = _queue_free;
+-	rdpsnd->queue = MessageQueue_New(&obj);
+-	if (!rdpsnd->queue)
+-		return CHANNEL_RC_NO_MEMORY;
+-
+ 	if (!allocate_internals(rdpsnd))
+ 		return CHANNEL_RC_NO_MEMORY;
+ 
+-	rdpsnd->thread = CreateThread(NULL, 0, play_thread, rdpsnd, 0, NULL);
+-	if (!rdpsnd->thread)
+-		return CHANNEL_RC_INITIALIZATION_ERROR;
+-
+ 	return CHANNEL_RC_OK;
+ }
+ 
+@@ -1415,8 +1423,6 @@ void rdpsnd_virtual_channel_event_terminated(rdpsndPlugin* rdpsnd)
+ {
+ 	if (rdpsnd)
+ 	{
+-		rdpsnd_terminate_thread(rdpsnd);
+-
+ 		free_internals(rdpsnd);
+ 		audio_formats_free(rdpsnd->fixed_format, 1);
+ 		free(rdpsnd->subsystem);
+@@ -1604,14 +1610,13 @@ static UINT rdpsnd_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ 		IFCALL(rdpsnd->device->Close, rdpsnd->device);
+ 
+ 	cleanup_internals(rdpsnd);
+-
++	free_internals(rdpsnd);
+ 	if (rdpsnd->device)
+ 	{
+ 		IFCALL(rdpsnd->device->Free, rdpsnd->device);
+ 		rdpsnd->device = NULL;
+ 	}
+ 
+-	free_internals(rdpsnd);
+ 	free(pChannelCallback);
+ 	return CHANNEL_RC_OK;
+ }
+-- 
+2.53.0
+
