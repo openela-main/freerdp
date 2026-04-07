@@ -1,0 +1,59 @@
+From 51847b9d1c3a3720e4742d2a6ee92429f0c1af48 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 10 Mar 2026 14:53:37 +0100
+Subject: [PATCH] [core,info] fix missing NULL check
+
+Backport of commit 4d44e3c097656a8b9ec696353647b0888ca45860.
+
+Made-with: Cursor
+---
+ libfreerdp/core/info.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/libfreerdp/core/info.c b/libfreerdp/core/info.c
+index 2f8e6694c..08d11e286 100644
+--- a/libfreerdp/core/info.c
++++ b/libfreerdp/core/info.c
+@@ -1436,7 +1436,7 @@ static BOOL rdp_write_logon_info_v1(wStream* s, logon_info* info)
+ 	return TRUE;
+ }
+ 
+-static BOOL rdp_write_logon_info_v2(wStream* s, logon_info* info)
++static BOOL rdp_write_logon_info_v2(wStream* s, const logon_info* info)
+ {
+ 	size_t domainLen = 0;
+ 	size_t usernameLen = 0;
+@@ -1451,11 +1451,14 @@ static BOOL rdp_write_logon_info_v2(wStream* s, logon_info* info)
+ 	 */
+ 	Stream_Write_UINT32(s, logonInfoV2Size);
+ 	Stream_Write_UINT32(s, info->sessionId);
+-	domainLen = strnlen(info->domain, UINT32_MAX);
++	if (info->domain)
++		domainLen = strnlen(info->domain, UINT32_MAX);
+ 	if (domainLen >= UINT32_MAX / sizeof(WCHAR))
+ 		return FALSE;
+ 	Stream_Write_UINT32(s, (UINT32)(domainLen + 1) * sizeof(WCHAR));
+-	usernameLen = strnlen(info->username, UINT32_MAX);
++
++	if (info->username)
++		usernameLen = strnlen(info->username, UINT32_MAX);
+ 	if (usernameLen >= UINT32_MAX / sizeof(WCHAR))
+ 		return FALSE;
+ 	Stream_Write_UINT32(s, (UINT32)(usernameLen + 1) * sizeof(WCHAR));
+@@ -1522,10 +1525,11 @@ static BOOL rdp_write_logon_info_ex(wStream* s, logon_info_ex* info)
+ 
+ BOOL rdp_send_save_session_info(rdpContext* context, UINT32 type, void* data)
+ {
+-	wStream* s = NULL;
+ 	BOOL status = 0;
++
++	WINPR_ASSERT(context);
+ 	rdpRdp* rdp = context->rdp;
+-	s = rdp_data_pdu_init(rdp);
++	wStream* s = rdp_data_pdu_init(rdp);
+ 
+ 	if (!s)
+ 		return FALSE;
+-- 
+2.53.0
+

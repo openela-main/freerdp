@@ -1,0 +1,35 @@
+From 429260893d7f67011d916394974ec0294ff65a90 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Wed, 11 Mar 2026 09:16:34 +0100
+Subject: [PATCH] [channels,drdynvc] reset channel_callback before close
+
+Backport of commit e02e052f6692550e539d10f99de9c35a23492db2.
+
+Made-with: Cursor
+---
+ channels/drdynvc/client/drdynvc_main.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/channels/drdynvc/client/drdynvc_main.c b/channels/drdynvc/client/drdynvc_main.c
+index 62ff674e5..e1c121f55 100644
+--- a/channels/drdynvc/client/drdynvc_main.c
++++ b/channels/drdynvc/client/drdynvc_main.c
+@@ -487,14 +487,13 @@ static UINT dvcman_channel_close(DVCMAN_CHANNEL* channel, BOOL perRequest, BOOL
+ 			channel->state = DVC_CHANNEL_CLOSED;
+ 
+ 			IWTSVirtualChannelCallback* cb = channel->channel_callback;
++			channel->channel_callback = NULL;
+ 			if (cb)
+ 			{
+ 				check_open_close_receive(channel);
+ 				IFCALL(cb->OnClose, cb);
+ 			}
+ 
+-			channel->channel_callback = NULL;
+-
+ 			if (channel->dvcman && channel->dvcman->drdynvc)
+ 			{
+ 				if (context)
+-- 
+2.53.0
+

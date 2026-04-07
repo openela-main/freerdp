@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        5%{?dist}.3
+Release:        5%{?dist}.5
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -104,6 +104,81 @@ Patch:          codec-clear-fix-destination-checks.patch
 # CVE-2026-26965
 # https://github.com/FreeRDP/FreeRDP/commit/a0be5cb87d760bb1c803ad1bb835aa1e73e62abc
 Patch:          codec-planar-fix-missing-destination-bounds-checks.patch
+
+# CVE-2026-22852
+# https://github.com/FreeRDP/FreeRDP/commit/cd1ffa112cfbe1b40a9fd57e299a8ea12e23df0d
+Patch:          channels-audin-free-up-old-audio-formats.patch
+
+# CVE-2026-22854
+# https://github.com/FreeRDP/FreeRDP/commit/3da319570c8a6be0a79b3306f1ed354c4a943259
+Patch:          channels-drive-fix-constant-type.patch
+
+# CVE-2026-22856
+# https://github.com/FreeRDP/FreeRDP/commit/b35aa3614d32bff3fc1272cd7c4617f711fca1a4
+# https://github.com/FreeRDP/FreeRDP/commit/675c20f08f32ca5ec06297108bdf30147d6e2cd9
+Patch:          channels-serial-lock-list-dictionary.patch
+Patch:          channels-serial-explicitly-lock-serial-IrpThreads.patch
+
+# CVE-2026-23732
+# https://github.com/FreeRDP/FreeRDP/commit/3bc1eeb4f63ceec9a696af194e4c1ea0e67ff60c
+# https://github.com/FreeRDP/FreeRDP/commit/9f0eb3b7d43069a1e973464bcb43d1ef965ae65e
+Patch:          codec-color-add-freerdp_glyph_convert_ex.patch
+Patch:          gdi-graphics-Use-freerdp_glyph_convert_ex.patch
+
+# CVE-2026-23948
+# https://github.com/FreeRDP/FreeRDP/commit/4d44e3c097656a8b9ec696353647b0888ca45860
+Patch:          core-info-fix-missing-NULL-check.patch
+
+# CVE-2026-24491
+# https://github.com/FreeRDP/FreeRDP/commit/e02e052f6692550e539d10f99de9c35a23492db2
+# https://github.com/FreeRDP/FreeRDP/commit/cb7f295bc750de86480d60a3b58cebc56a57a1c4
+# https://github.com/FreeRDP/FreeRDP/commit/635ae3c8193256db01774fab5ff11bcae57aed6b
+# https://github.com/FreeRDP/FreeRDP/commit/e01cd85c8003a245ef9778f0eda4b9235514c201
+Patch:          channels-drdynvc-reset-channel_callback-before-close.patch
+Patch:          channels-drdynvc-check-pointer-before-reset.patch
+Patch:          channels-video-unify-error-handling.patch
+Patch:          channels-video-fix-wrong-cast.patch
+
+# CVE-2026-24675
+# https://github.com/FreeRDP/FreeRDP/commit/d676518809c319eec15911c705c13536036af2ae
+Patch:          channels-urbdrc-do-not-free-MsConfig-on-failure.patch
+
+# CVE-2026-24676
+# https://github.com/FreeRDP/FreeRDP/commit/026b81ae5831ac1598d8f7371e0d0996fac7db00
+Patch:          channels-audin-reset-audin-format.patch
+
+# CVE-2026-24679
+# https://github.com/FreeRDP/FreeRDP/commit/2d563a50be17c1b407ca448b1321378c0726dd31
+Patch:          channels-urbdrc-ensure-InterfaceNumber-is-within-ran.patch
+
+# CVE-2026-24681
+# https://github.com/FreeRDP/FreeRDP/commit/414f701464929c217f2509bcbd6d2c1f00f7ed73
+Patch:          channels-urbdrc-cancel-all-usb-transfers-on-channel-.patch
+
+# CVE-2026-24682
+# https://github.com/FreeRDP/FreeRDP/commit/1c5c74223179d425a1ce6dbbb6a3dd2a958b7aee
+# https://github.com/FreeRDP/FreeRDP/commit/668352a2e241ba017679c11a22ecbe29d0b17401
+Patch:          channels-audin-fix-audin_server_recv_formats-cleanup.patch
+Patch:          channels-audin-set-error-when-audio_format_read-fail.patch
+
+# CVE-2026-24683
+# https://github.com/FreeRDP/FreeRDP/commit/d9ca272dce7a776ab475e9b1a8e8c3d2968c8486
+Patch:          channels-ainput-lock-context-when-updating-listener.patch
+
+# CVE-2026-24684
+# https://github.com/FreeRDP/FreeRDP/commit/622bb7b4402491ca003f47472d0e478132673696
+# https://github.com/FreeRDP/FreeRDP/commit/afa6851dc80835d3101e40fcef51b6c5c0f43ea5
+Patch:          channels-rdpsnd-terminate-thread-before-free.patch
+Patch:          channel-rdpsnd-only-clean-up-thread-before-free.patch
+
+# CVE-2026-31806
+# https://github.com/FreeRDP/FreeRDP/commit/83d9aedea278a74af3e490ff5eeb889c016dbb2b
+# https://github.com/FreeRDP/FreeRDP/commit/169971607cece48384cb94632b829bd57336af0f
+Patch:          codec-nsc-limit-copy-area-in-nsc_process_message.patch
+Patch:          codec-nsc-fix-use-of-nsc_process_message.patch
+
+# https://github.com/FreeRDP/FreeRDP/commit/907ca47e40583a7788674bb2f06258edd0c34223
+Patch:          winpr-synch-increase-timeout-for-TestSynchCritical.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -427,6 +502,17 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.5
+- Fix use of nsc_process_message
+- Increase timeout for TestSynchCritical
+  Resolves: RHEL-155979
+
+* Fri Mar 27 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.4
+- Backport several CVE fixes
+  Resolves: RHEL-147948, RHEL-147949, RHEL-147956, RHEL-147963, RHEL-147964
+  Resolves: RHEL-147972, RHEL-147979, RHEL-147984, RHEL-147985, RHEL-148898
+  Resolves: RHEL-148978, RHEL-148984, RHEL-149051, RHEL-155979
+
 * Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.3
 - Backport several CVE fixes
   Resolves: RHEL-151975, RHEL-152202

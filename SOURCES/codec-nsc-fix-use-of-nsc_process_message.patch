@@ -1,0 +1,91 @@
+From 7702ec2f2aadb0cfae86b00c177647e31f6159d4 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Mon, 30 Mar 2026 17:25:10 +0200
+Subject: [PATCH] [codec,nsc] fix use of nsc_process_message
+
+Backport of commit 169971607cece48384cb94632b829bd57336af0f.
+
+Made-with: Cursor
+---
+ libfreerdp/codec/clear.c | 10 ++++++----
+ libfreerdp/codec/nsc.c   |  9 ++++++++-
+ libfreerdp/gdi/gdi.c     |  4 ++--
+ 3 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index 4c42bb2bf..a54758173 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -133,7 +133,8 @@ static BOOL convert_color(BYTE* WINPR_RESTRICT dst, UINT32 nDstStep, UINT32 DstF
+ static BOOL clear_decompress_nscodec(NSC_CONTEXT* WINPR_RESTRICT nsc, UINT32 width, UINT32 height,
+                                      wStream* WINPR_RESTRICT s, UINT32 bitmapDataByteCount,
+                                      BYTE* WINPR_RESTRICT pDstData, UINT32 DstFormat,
+-                                     UINT32 nDstStep, UINT32 nXDstRel, UINT32 nYDstRel)
++                                     UINT32 nDstStep, UINT32 nXDstRel, UINT32 nYDstRel,
++                                     UINT32 nDstWidth, UINT32 nDstHeight)
+ {
+ 	BOOL rc = 0;
+ 
+@@ -141,8 +142,8 @@ static BOOL clear_decompress_nscodec(NSC_CONTEXT* WINPR_RESTRICT nsc, UINT32 wid
+ 		return FALSE;
+ 
+ 	rc = nsc_process_message(nsc, 32, width, height, Stream_Pointer(s), bitmapDataByteCount,
+-	                         pDstData, DstFormat, nDstStep, nXDstRel, nYDstRel, width, height,
+-	                         FREERDP_FLIP_NONE);
++	                         pDstData, DstFormat, nDstStep, nXDstRel, nYDstRel, nDstWidth,
++	                         nDstHeight, FREERDP_FLIP_NONE);
+ 	Stream_Seek(s, bitmapDataByteCount);
+ 	return rc;
+ }
+@@ -531,7 +532,8 @@ static BOOL clear_decompress_subcodecs_data(CLEAR_CONTEXT* WINPR_RESTRICT clear,
+ 
+ 			case 1: /* NSCodec */
+ 				if (!clear_decompress_nscodec(clear->nsc, width, height, s, bitmapDataByteCount,
+-				                              pDstData, DstFormat, nDstStep, nXDstRel, nYDstRel))
++				                              pDstData, DstFormat, nDstStep, nXDstRel, nYDstRel,
++				                              nDstWidth, nDstHeight))
+ 					return FALSE;
+ 
+ 				break;
+diff --git a/libfreerdp/codec/nsc.c b/libfreerdp/codec/nsc.c
+index 916e5ff8d..951983a1d 100644
+--- a/libfreerdp/codec/nsc.c
++++ b/libfreerdp/codec/nsc.c
+@@ -435,11 +435,18 @@ BOOL nsc_process_message(NSC_CONTEXT* WINPR_RESTRICT context, UINT16 bpp, UINT32
+                          BYTE* WINPR_RESTRICT pDstData, UINT32 DstFormat, UINT32 nDstStride,
+                          UINT32 nXDst, UINT32 nYDst, UINT32 nWidth, UINT32 nHeight, UINT32 flip)
+ {
++	WINPR_ASSERT(context);
++	WINPR_ASSERT(context->priv);
++
+ 	wStream* s = NULL;
+ 	wStream sbuffer = { 0 };
+ 	BOOL ret = 0;
+-	if (!context || !data || !pDstData)
++	if (!data || !pDstData)
++	{
++		WLog_Print(context->priv->log, WLOG_ERROR, "Invalid argument: data=%p, pDstData=%p",
++		           (const void*)data, (void*)pDstData);
+ 		return FALSE;
++	}
+ 
+ 	s = Stream_StaticConstInit(&sbuffer, data, length);
+ 
+diff --git a/libfreerdp/gdi/gdi.c b/libfreerdp/gdi/gdi.c
+index f80ada8ae..6a18307c2 100644
+--- a/libfreerdp/gdi/gdi.c
++++ b/libfreerdp/gdi/gdi.c
+@@ -1101,8 +1101,8 @@ static BOOL gdi_surface_bits(rdpContext* context, const SURFACE_BITS_COMMAND* cm
+ 			if (!nsc_process_message(
+ 			        context->codecs->nsc, cmd->bmp.bpp, cmd->bmp.width, cmd->bmp.height,
+ 			        cmd->bmp.bitmapData, cmd->bmp.bitmapDataLength, gdi->primary_buffer, format,
+-			        gdi->stride, cmdRect.left, cmdRect.top, cmdRect.right - cmdRect.left,
+-			        cmdRect.bottom - cmdRect.top, FREERDP_FLIP_VERTICAL))
++			        gdi->stride, cmdRect.left, cmdRect.top, (UINT32)gdi->width, (UINT32)gdi->height,
++			        FREERDP_FLIP_VERTICAL))
+ 			{
+ 				WLog_ERR(TAG, "Failed to process NSCodec message");
+ 				goto out;
+-- 
+2.53.0
+

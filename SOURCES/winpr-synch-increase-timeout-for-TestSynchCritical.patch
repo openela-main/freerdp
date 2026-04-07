@@ -1,0 +1,30 @@
+From 907ca47e40583a7788674bb2f06258edd0c34223 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Dan=20Hor=C3=A1k?= <dan@danny.cz>
+Date: Fri, 22 Aug 2025 19:14:05 +0200
+Subject: [PATCH] [winpr,synch] increase timeout for TestSynchCritical
+
+Increase the deadlock detection timeout in TestSynchCritical to accommodate
+longer runtime on systems with large number of CPUs/threads. The usual test
+run time when the threads are finishing correctly won't change.
+
+Fixes: https://github.com/FreeRDP/FreeRDP/issues/11800
+---
+ winpr/libwinpr/synch/test/TestSynchCritical.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/winpr/libwinpr/synch/test/TestSynchCritical.c b/winpr/libwinpr/synch/test/TestSynchCritical.c
+index 139885a81..b44a70a1e 100644
+--- a/winpr/libwinpr/synch/test/TestSynchCritical.c
++++ b/winpr/libwinpr/synch/test/TestSynchCritical.c
+@@ -8,7 +8,7 @@
+ #include <winpr/thread.h>
+ #include <winpr/interlocked.h>
+ 
+-#define TEST_SYNC_CRITICAL_TEST1_RUNTIME_MS 50
++#define TEST_SYNC_CRITICAL_TEST1_RUNTIME_MS 100
+ #define TEST_SYNC_CRITICAL_TEST1_RUNS 4
+ 
+ static CRITICAL_SECTION critical;
+-- 
+2.53.0
+

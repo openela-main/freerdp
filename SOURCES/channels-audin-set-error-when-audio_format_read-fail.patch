@@ -1,0 +1,34 @@
+From 668352a2e241ba017679c11a22ecbe29d0b17401 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 17 Mar 2026 09:34:08 +0100
+Subject: [PATCH] [channels,audin] set error when audio_format_read fails
+
+Currently, `goto fail` is called when `audio_format_read` fails, but
+`error` is not changed, so `CHANNEL_RC_OK` is returned. Before the
+1c5c7422 commit, `ERROR_INVALID_DATA` was returned. Let's again set
+that error code and also restore the debug print.
+
+Made-with: Cursor
+---
+ channels/audin/server/audin.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/channels/audin/server/audin.c b/channels/audin/server/audin.c
+index ae36df6bf..1d3ddd411 100644
+--- a/channels/audin/server/audin.c
++++ b/channels/audin/server/audin.c
+@@ -146,7 +146,11 @@ static UINT audin_server_recv_formats(audin_server_context* context, wStream* s,
+ 		AUDIO_FORMAT* format = &pdu.SoundFormats[i];
+ 
+ 		if (!audio_format_read(s, format))
++		{
++			WLog_Print(audin->log, WLOG_ERROR, "Failed to read audio format");
++			error = ERROR_INVALID_DATA;
+ 			goto fail;
++		}
+ 
+ 		audio_format_print(audin->log, WLOG_DEBUG, format);
+ 	}
+-- 
+2.53.0
+

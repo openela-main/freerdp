@@ -1,0 +1,33 @@
+From 54ab7e13650f3ef9d912e9d0e336b9d7f22537ca Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 12 Mar 2026 10:20:59 +0100
+Subject: [PATCH] [channels,drdynvc] check pointer before reset
+
+Backport of commit cb7f295bc750de86480d60a3b58cebc56a57a1c4.
+
+Made-with: Cursor
+---
+ channels/drdynvc/client/drdynvc_main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/channels/drdynvc/client/drdynvc_main.c b/channels/drdynvc/client/drdynvc_main.c
+index e1c121f55..06ee325e5 100644
+--- a/channels/drdynvc/client/drdynvc_main.c
++++ b/channels/drdynvc/client/drdynvc_main.c
+@@ -486,11 +486,12 @@ static UINT dvcman_channel_close(DVCMAN_CHANNEL* channel, BOOL perRequest, BOOL
+ 
+ 			channel->state = DVC_CHANNEL_CLOSED;
+ 
++			check_open_close_receive(channel);
++
+ 			IWTSVirtualChannelCallback* cb = channel->channel_callback;
+ 			channel->channel_callback = NULL;
+ 			if (cb)
+ 			{
+-				check_open_close_receive(channel);
+ 				IFCALL(cb->OnClose, cb);
+ 			}
+ 
+-- 
+2.53.0
+

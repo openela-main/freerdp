@@ -1,0 +1,117 @@
+From 0328bb3828b836d53b904187b0b6d49f940d1180 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 26 Mar 2026 13:39:06 +0100
+Subject: [PATCH] [channels,video] unify error handling
+
+Partial backport of commit 635ae3c8193256db01774fab5ff11bcae57aed6b.
+
+Made-with: Cursor
+---
+ channels/video/client/video_main.c | 49 +++++++++++++++++++-----------
+ 1 file changed, 32 insertions(+), 17 deletions(-)
+
+diff --git a/channels/video/client/video_main.c b/channels/video/client/video_main.c
+index 390f1723a..c2677992b 100644
+--- a/channels/video/client/video_main.c
++++ b/channels/video/client/video_main.c
+@@ -354,14 +354,24 @@ void VideoClientContextPriv_free(VideoClientContextPriv* priv)
+ 	free(priv);
+ }
+ 
++static UINT video_channel_write(VIDEO_PLUGIN* video, const BYTE* data, UINT32 length)
++{
++	WINPR_ASSERT(video);
++
++	if (!video->control_callback || !video->control_callback->channel_callback)
++		return ERROR_BAD_CONFIGURATION;
++	IWTSVirtualChannel* channel = video->control_callback->channel_callback->channel;
++	if (!channel || !channel->Write)
++		return ERROR_BAD_CONFIGURATION;
++	return channel->Write(channel, length, data, NULL);
++}
++
+ static UINT video_control_send_presentation_response(VideoClientContext* context,
+                                                      TSMM_PRESENTATION_RESPONSE* resp)
+ {
+ 	BYTE buf[12] = { 0 };
+ 	wStream* s = NULL;
+ 	VIDEO_PLUGIN* video = NULL;
+-	IWTSVirtualChannel* channel = NULL;
+-	UINT ret = 0;
+ 
+ 	WINPR_ASSERT(context);
+ 	WINPR_ASSERT(resp);
+@@ -379,11 +389,9 @@ static UINT video_control_send_presentation_response(VideoClientContext* context
+ 	Stream_Zero(s, 3);
+ 	Stream_SealLength(s);
+ 
+-	channel = video->control_callback->channel_callback->channel;
+-	ret = channel->Write(channel, 12, buf, NULL);
+ 	Stream_Free(s, FALSE);
+ 
+-	return ret;
++	return video_channel_write(video, buf, sizeof(buf));
+ }
+ 
+ static BOOL video_onMappedGeometryUpdate(MAPPED_GEOMETRY* geometry)
+@@ -620,8 +628,6 @@ static UINT video_control_send_client_notification(VideoClientContext* context,
+ 	BYTE buf[100];
+ 	wStream* s = NULL;
+ 	VIDEO_PLUGIN* video = NULL;
+-	IWTSVirtualChannel* channel = NULL;
+-	UINT ret = 0;
+ 	UINT32 cbSize = 0;
+ 
+ 	WINPR_ASSERT(context);
+@@ -661,16 +667,7 @@ static UINT video_control_send_client_notification(VideoClientContext* context,
+ 	Stream_Write_UINT32(s, cbSize);
+ 	Stream_Free(s, FALSE);
+ 
+-	WINPR_ASSERT(video->control_callback);
+-	WINPR_ASSERT(video->control_callback->channel_callback);
+-
+-	channel = video->control_callback->channel_callback->channel;
+-	WINPR_ASSERT(channel);
+-	WINPR_ASSERT(channel->Write);
+-
+-	ret = channel->Write(channel, cbSize, buf, NULL);
+-
+-	return ret;
++	return video_channel_write(video, buf, cbSize);
+ }
+ 
+ static void video_timer(VideoClientContext* video, UINT64 now)
+@@ -1006,12 +1003,30 @@ static UINT video_data_on_data_received(IWTSVirtualChannelCallback* pChannelCall
+  */
+ static UINT video_control_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ {
++	if (pChannelCallback)
++	{
++		GENERIC_LISTENER_CALLBACK* listener_callback = (GENERIC_LISTENER_CALLBACK*)pChannelCallback;
++		VIDEO_PLUGIN* video = (VIDEO_PLUGIN*)listener_callback->plugin;
++		if (video && video->control_callback)
++		{
++			video->control_callback->channel_callback = NULL;
++		}
++	}
+ 	free(pChannelCallback);
+ 	return CHANNEL_RC_OK;
+ }
+ 
+ static UINT video_data_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ {
++	if (pChannelCallback)
++	{
++		GENERIC_LISTENER_CALLBACK* listener_callback = (GENERIC_LISTENER_CALLBACK*)pChannelCallback;
++		VIDEO_PLUGIN* video = (VIDEO_PLUGIN*)listener_callback->plugin;
++		if (video && video->data_callback)
++		{
++			video->data_callback->channel_callback = NULL;
++		}
++	}
+ 	free(pChannelCallback);
+ 	return CHANNEL_RC_OK;
+ }
+-- 
+2.53.0
+
