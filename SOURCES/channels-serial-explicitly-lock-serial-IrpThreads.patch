@@ -1,0 +1,55 @@
+From c0283812c918c7738facafac52cf51d916536138 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 10 Mar 2026 08:47:57 +0100
+Subject: [PATCH] [channels,serial] explicitly lock serial->IrpThreads
+
+Backport of commit 675c20f08f32ca5ec06297108bdf30147d6e2cd9.
+
+Made-with: Cursor
+---
+ channels/serial/client/serial_main.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/channels/serial/client/serial_main.c b/channels/serial/client/serial_main.c
+index d76d725f1..c8a27c46c 100644
+--- a/channels/serial/client/serial_main.c
++++ b/channels/serial/client/serial_main.c
+@@ -597,7 +597,10 @@ static void create_irp_thread(SERIAL_DEVICE* serial, IRP* irp)
+ 	 * observed with FreeRDP).
+ 	 */
+ 	key = irp->CompletionId;
++
++	ListDictionary_Lock(serial->IrpThreads);
+ 	previousIrpThread = ListDictionary_GetItemValue(serial->IrpThreads, (void*)key);
++	ListDictionary_Unlock(serial->IrpThreads);
+ 
+ 	if (previousIrpThread)
+ 	{
+@@ -678,6 +681,7 @@ static void terminate_pending_irp_threads(SERIAL_DEVICE* serial)
+ {
+ 	ULONG_PTR* ids;
+ 	int i, nbIds;
++	ListDictionary_Lock(serial->IrpThreads);
+ 	nbIds = ListDictionary_GetKeys(serial->IrpThreads, &ids);
+ 	WLog_Print(serial->log, WLOG_DEBUG, "Terminating %d IRP thread(s)", nbIds);
+ 
+@@ -699,6 +703,7 @@ static void terminate_pending_irp_threads(SERIAL_DEVICE* serial)
+ 	}
+ 
+ 	ListDictionary_Clear(serial->IrpThreads);
++	ListDictionary_Unlock(serial->IrpThreads);
+ 	free(ids);
+ }
+ 
+@@ -932,7 +937,7 @@ UINT DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
+ 		}
+ 
+ 		/* IrpThreads content only modified by create_irp_thread() */
+-		serial->IrpThreads = ListDictionary_New(TRUE);
++		serial->IrpThreads = ListDictionary_New(FALSE);
+ 
+ 		if (!serial->IrpThreads)
+ 		{
+-- 
+2.53.0
+

@@ -1,0 +1,114 @@
+From b54003ad2dcb69b3c7836ae1445c48af8b39cd4c Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Sat, 28 Mar 2026 12:13:04 +0100
+Subject: [PATCH] [codec,color] add freerdp_glyph_convert_ex
+
+Backport of commit 3bc1eeb4f63ceec9a696af194e4c1ea0e67ff60c.
+
+Made-with: Cursor
+---
+ libfreerdp/codec/color.c  | 12 +++++++++--
+ libfreerdp/gdi/graphics.c | 45 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 2 deletions(-)
+
+diff --git a/libfreerdp/codec/color.c b/libfreerdp/codec/color.c
+index f8467c295..4c72ee3e6 100644
+--- a/libfreerdp/codec/color.c
++++ b/libfreerdp/codec/color.c
+@@ -28,6 +28,7 @@
+ #include <stdlib.h>
+ 
+ #include <winpr/crt.h>
++#include <winpr/assert.h>
+ 
+ #include <freerdp/log.h>
+ #include <freerdp/freerdp.h>
+@@ -49,13 +50,20 @@ BYTE* freerdp_glyph_convert(UINT32 width, UINT32 height, const BYTE* data)
+ 	const BYTE* srcp;
+ 	BYTE* dstp;
+ 	BYTE* dstData;
+-	UINT32 scanline;
++	size_t scanline;
++
+ 	/*
+ 	 * converts a 1-bit-per-pixel glyph to a one-byte-per-pixel glyph:
+ 	 * this approach uses a little more memory, but provides faster
+ 	 * means of accessing individual pixels in blitting operations
+ 	 */
+-	scanline = (width + 7) / 8;
++	scanline = (width + 7ull) / 8ull;
++
++	if ((width == 0) || (height == 0))
++		return NULL;
++
++	WINPR_ASSERT(data);
++
+ 	dstData = (BYTE*)_aligned_malloc(1ull * width * height, 16);
+ 
+ 	if (!dstData)
+diff --git a/libfreerdp/gdi/graphics.c b/libfreerdp/gdi/graphics.c
+index 479eac9b8..dab159c43 100644
+--- a/libfreerdp/gdi/graphics.c
++++ b/libfreerdp/gdi/graphics.c
+@@ -23,6 +23,7 @@
+ #include "config.h"
+ #endif
+ 
++#include <winpr/assert.h>
+ #include <winpr/crt.h>
+ 
+ #include <freerdp/log.h>
+@@ -215,6 +216,50 @@ static BOOL gdi_Bitmap_SetSurface(rdpContext* context, rdpBitmap* bitmap, BOOL p
+ }
+ 
+ /* Glyph Class */
++static BYTE* freerdp_glyph_convert_ex(UINT32 width, UINT32 height, const BYTE* data, size_t len)
++{
++	/*
++	 * converts a 1-bit-per-pixel glyph to a one-byte-per-pixel glyph:
++	 * this approach uses a little more memory, but provides faster
++	 * means of accessing individual pixels in blitting operations
++	 */
++	const size_t scanline = (width + 7ull) / 8ull;
++	const size_t required = scanline * height;
++	if (len < required)
++		return NULL;
++
++	if ((len == 0) || (width == 0) || (height == 0))
++		return NULL;
++
++	WINPR_ASSERT(data);
++
++	BYTE* dstData = (BYTE*)_aligned_malloc(1ull * width * height, 16);
++
++	if (!dstData)
++		return NULL;
++
++	ZeroMemory(dstData, 1ULL * width * height);
++	BYTE* dstp = dstData;
++
++	for (UINT32 y = 0; y < height; y++)
++	{
++		const BYTE* srcp = &data[1ull * y * scanline];
++
++		for (UINT32 x = 0; x < width; x++)
++		{
++			if ((*srcp & (0x80 >> (x % 8))) != 0)
++				*dstp = 0xFF;
++
++			dstp++;
++
++			if (((x + 1) % 8 == 0) && x != 0)
++				srcp++;
++		}
++	}
++
++	return dstData;
++}
++
+ static BOOL gdi_Glyph_New(rdpContext* context, const rdpGlyph* glyph)
+ {
+ 	BYTE* data;
+-- 
+2.53.0
+

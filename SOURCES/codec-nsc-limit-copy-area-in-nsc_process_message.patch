@@ -1,0 +1,44 @@
+From 9a9e00529b1b04718370a1d8e2d8b6768c9ee913 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Mon, 16 Mar 2026 14:59:12 +0100
+Subject: [PATCH] [codec,nsc] limit copy area in nsc_process_message
+
+Backport of commit 83d9aedea278a74af3e490ff5eeb889c016dbb2b.
+
+Made-with: Cursor
+---
+ libfreerdp/codec/nsc.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/nsc.c b/libfreerdp/codec/nsc.c
+index 5dd2646ea..a257ae24a 100644
+--- a/libfreerdp/codec/nsc.c
++++ b/libfreerdp/codec/nsc.c
+@@ -24,6 +24,7 @@
+ #include "config.h"
+ #endif
+ 
++#include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -515,7 +516,15 @@ BOOL nsc_process_message(NSC_CONTEXT* context, UINT16 bpp, UINT32 width, UINT32
+ 			return FALSE;
+ 	}
+ 
+-	if (!freerdp_image_copy(pDstData, DstFormat, nDstStride, nXDst, nYDst, width, height,
++	uint32_t cwidth = width;
++	if (1ull * nXDst + width > nWidth)
++		cwidth = nWidth - nXDst;
++
++	uint32_t cheight = height;
++	if (1ull * nYDst + height > nHeight)
++		cheight = nHeight - nYDst;
++
++	if (!freerdp_image_copy(pDstData, DstFormat, nDstStride, nXDst, nYDst, cwidth, cheight,
+ 	                        context->BitmapData, PIXEL_FORMAT_BGRA32, 0, 0, 0, NULL, flip))
+ 		return FALSE;
+ 
+-- 
+2.53.0
+

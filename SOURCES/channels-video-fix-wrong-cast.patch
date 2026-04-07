@@ -1,0 +1,37 @@
+From 970ad2311e69589004d6a84961aa9d1e3b33c085 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Thu, 26 Mar 2026 15:57:34 +0100
+Subject: [PATCH] [channels,video] fix wrong cast
+
+Backport of commit e01cd85c8003a245ef9778f0eda4b9235514c201.
+
+Made-with: Cursor
+---
+ channels/video/client/video_main.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/channels/video/client/video_main.c b/channels/video/client/video_main.c
+index 641231b1d..0af78140e 100644
+--- a/channels/video/client/video_main.c
++++ b/channels/video/client/video_main.c
+@@ -959,7 +959,7 @@ static UINT video_control_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ {
+ 	if (pChannelCallback)
+ 	{
+-		VIDEO_LISTENER_CALLBACK* listener_callback = (VIDEO_LISTENER_CALLBACK*)pChannelCallback;
++		VIDEO_CHANNEL_CALLBACK* listener_callback = (VIDEO_CHANNEL_CALLBACK*)pChannelCallback;
+ 		VIDEO_PLUGIN* video = (VIDEO_PLUGIN*)listener_callback->plugin;
+ 		if (video && video->control_callback)
+ 		{
+@@ -974,7 +974,7 @@ static UINT video_data_on_close(IWTSVirtualChannelCallback* pChannelCallback)
+ {
+ 	if (pChannelCallback)
+ 	{
+-		VIDEO_LISTENER_CALLBACK* listener_callback = (VIDEO_LISTENER_CALLBACK*)pChannelCallback;
++		VIDEO_CHANNEL_CALLBACK* listener_callback = (VIDEO_CHANNEL_CALLBACK*)pChannelCallback;
+ 		VIDEO_PLUGIN* video = (VIDEO_PLUGIN*)listener_callback->plugin;
+ 		if (video && video->data_callback)
+ 		{
+-- 
+2.53.0
+
