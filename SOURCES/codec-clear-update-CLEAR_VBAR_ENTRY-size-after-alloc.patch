@@ -1,0 +1,29 @@
+From a2dde6d9832cb032e8cf12cab3da84dafbab9006 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 25 Mar 2026 09:48:54 +0100
+Subject: [PATCH] [codec,clear] update CLEAR_VBAR_ENTRY::size after alloc
+
+---
+ libfreerdp/codec/clear.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index 67ae4f3656f8..b8ae99e80b03 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -567,7 +567,6 @@ static BOOL resize_vbar_entry(CLEAR_CONTEXT* WINPR_RESTRICT clear,
+ 		const UINT32 oldPos = vBarEntry->size * bpp;
+ 		const UINT32 diffSize = (vBarEntry->count - vBarEntry->size) * bpp;
+ 
+-		vBarEntry->size = vBarEntry->count;
+ 		BYTE* tmp =
+ 		    (BYTE*)winpr_aligned_recalloc(vBarEntry->pixels, vBarEntry->count, 1ull * bpp, 32);
+ 
+@@ -580,6 +579,7 @@ static BOOL resize_vbar_entry(CLEAR_CONTEXT* WINPR_RESTRICT clear,
+ 
+ 		memset(&tmp[oldPos], 0, diffSize);
+ 		vBarEntry->pixels = tmp;
++		vBarEntry->size = vBarEntry->count;
+ 	}
+ 
+ 	if (!vBarEntry->pixels && vBarEntry->size)
