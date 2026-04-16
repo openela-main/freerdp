@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        1%{?dist}.5
+Release:        1%{?dist}.6
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -139,6 +139,16 @@ Patch:          channel-rdpsnd-only-clean-up-thread-before-free.patch
 # https://github.com/FreeRDP/FreeRDP/commit/169971607cece48384cb94632b829bd57336af0f
 Patch:          codec-nsc-limit-copy-area-in-nsc_process_message.patch
 Patch:          codec-nsc-fix-use-of-nsc_process_message.patch
+
+# CVE-2026-33984
+# https://github.com/FreeRDP/FreeRDP/commit/a2dde6d9832cb032e8cf12cab3da84dafbab9006
+Patch:          codec-clear-update-CLEAR_VBAR_ENTRY-size-after-alloc.patch
+
+# CVE-2026-33983
+# https://github.com/FreeRDP/FreeRDP/commit/78188ab479c8e6eb9ba2475b3732c76b4bbe5425
+# https://github.com/FreeRDP/FreeRDP/commit/78677dc6e262f46937d00c3aa52381e4bb198fa5
+Patch:          codec-progressive-fail-progressive_rfx_quant_sub-on-invalid-values.patch
+Patch:          codec-progressive-fix-underflow-guard-in-progressive_rfx_quant_sub.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -397,6 +407,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.6
+- Update CLEAR_VBAR_ENTRY size after alloc (CVE-2026-33984)
+- Fail progressive_rfx_quant_sub on invalid values (CVE-2026-33983)
+  Resolves: RHEL-162958, RHEL-162978
+
 * Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.5
 - Fix use of nsc_process_message
   Resolves: RHEL-155993
