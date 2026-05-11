@@ -1,0 +1,58 @@
+From daa338be37d8fdc8c4c924b5e868f5b979e49065 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 28 Apr 2026 05:15:04 +0000
+Subject: [PATCH] [codec,clear] Update CLEAR_GLYPH_ENTRY::count after alloc
+
+Backport of commit c49d1ad43b8c7b32794d0250f2623c2dccd7ef25.
+
+WINPR_ASSERTING_INT_CAST replaced with plain cast (macro not available in 3.10.3).
+
+Made-with: Cursor
+---
+ libfreerdp/codec/clear.c | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/libfreerdp/codec/clear.c b/libfreerdp/codec/clear.c
+index 2d58aba..8b1571a 100644
+--- a/libfreerdp/codec/clear.c
++++ b/libfreerdp/codec/clear.c
+@@ -980,20 +980,30 @@ static BOOL clear_decompress_glyph_data(CLEAR_CONTEXT* WINPR_RESTRICT clear,
+ 	{
+ 		const UINT32 bpp = FreeRDPGetBytesPerPixel(clear->format);
+ 		CLEAR_GLYPH_ENTRY* glyphEntry = &(clear->GlyphCache[glyphIndex]);
+-		glyphEntry->count = nWidth * nHeight;
++		const size_t count = 1ull * nWidth * nHeight;
++		const size_t hlimit = SIZE_MAX / ((nWidth > 0) ? nWidth : 1);
++		if ((nWidth == 0) || (nHeight == 0) || (hlimit < nHeight))
++		{
++			const char* exceeded = (hlimit < nHeight) ? "within" : "outside";
++			WLog_ERR(TAG,
++			         "CLEARCODEC_FLAG_GLYPH_INDEX: nWidth=%" PRIu32 ", nHeight=%" PRIu32
++			         ", nWidth * nHeight is %s allowed range",
++			         nWidth, nHeight, exceeded);
++			return FALSE;
++		}
+ 
+-		if (glyphEntry->count > glyphEntry->size)
++		if (count > glyphEntry->size)
+ 		{
+-			BYTE* tmp =
+-			    winpr_aligned_recalloc(glyphEntry->pixels, glyphEntry->count, 1ull * bpp, 32);
++			BYTE* tmp = winpr_aligned_recalloc(glyphEntry->pixels, count, 1ull * bpp, 32);
+ 
+ 			if (!tmp)
+ 			{
+-				WLog_ERR(TAG, "glyphEntry->pixels winpr_aligned_recalloc %" PRIu32 " failed!",
+-				         glyphEntry->count * bpp);
++				WLog_ERR(TAG, "glyphEntry->pixels winpr_aligned_recalloc %" PRIuz " failed!",
++				         count * bpp);
+ 				return FALSE;
+ 			}
+ 
++			glyphEntry->count = (UINT32)count;
+ 			glyphEntry->size = glyphEntry->count;
+ 			glyphEntry->pixels = (UINT32*)tmp;
+ 		}
+-- 
+2.53.0
+
