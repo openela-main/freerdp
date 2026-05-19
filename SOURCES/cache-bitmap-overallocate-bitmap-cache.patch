@@ -1,0 +1,33 @@
+From 3c4666445b42c983a767e59888c5863bb420f331 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 28 Apr 2026 04:19:33 +0000
+Subject: [PATCH] [cache,bitmap] overallocate bitmap cache
+
+Backport of commit ffad58fd2b329efd81a3239e9d7e3c927b8e503f.
+
+Adjusted hunk offsets for 3.10.3.
+
+Made-with: Cursor
+---
+ libfreerdp/cache/bitmap.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/cache/bitmap.c b/libfreerdp/cache/bitmap.c
+index 6b6463c..8083fd9 100644
+--- a/libfreerdp/cache/bitmap.c
++++ b/libfreerdp/cache/bitmap.c
+@@ -367,7 +367,10 @@ rdpBitmapCache* bitmap_cache_new(rdpContext* context)
+ 	const UINT32 BitmapCacheV2NumCells =
+ 	    freerdp_settings_get_uint32(settings, FreeRDP_BitmapCacheV2NumCells);
+ 	bitmapCache->context = context;
+-	bitmapCache->cells = (BITMAP_V2_CELL*)calloc(BitmapCacheV2NumCells, sizeof(BITMAP_V2_CELL));
++
++	/* overallocate by 1. older RDP servers do send a off by 1 cache index. */
++	bitmapCache->cells =
++	    (BITMAP_V2_CELL*)calloc(BitmapCacheV2NumCells + 1ull, sizeof(BITMAP_V2_CELL));
+ 
+ 	if (!bitmapCache->cells)
+ 		goto fail;
+-- 
+2.53.0
+

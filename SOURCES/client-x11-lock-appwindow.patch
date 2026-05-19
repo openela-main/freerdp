@@ -1,0 +1,439 @@
+From 87ef0851132df9b00380f3cfe9d63272a85d7c49 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 5 May 2026 11:03:44 +0000
+Subject: [PATCH] [client,x11] lock appWindow
+
+Backport of commit 1994e9844212a6dfe0ff12309fef520e888986b5.
+
+Adapted for 3.10.3: `xf_generic_MotionNotify_` renamed to
+`xf_generic_MotionNotify`, `xf_generic_ButtonEvent_` to
+`xf_generic_ButtonEvent`, `WINPR_ATTR_MALLOC` attribute removed
+(not available in 3.10.3), adjusted hunk offsets.
+
+Made-with: Cursor
+---
+ client/X11/xf_event.c    | 47 ++++++++++++++++++----------
+ client/X11/xf_graphics.c | 10 +++---
+ client/X11/xf_rail.c     | 67 ++++++++++++++++++++++++++--------------
+ client/X11/xf_rail.h     |  3 ++
+ client/X11/xf_window.c   |  8 ++++-
+ client/X11/xf_window.h   |  1 +
+ 6 files changed, 92 insertions(+), 44 deletions(-)
+
+diff --git a/client/X11/xf_event.c b/client/X11/xf_event.c
+index 0fce625..b26ece0 100644
+--- a/client/X11/xf_event.c
++++ b/client/X11/xf_event.c
+@@ -442,7 +442,9 @@ BOOL xf_generic_MotionNotify(xfContext* xfc, int x, int y, int state, Window win
+ 	if (app)
+ 	{
+ 		/* make sure window exists */
+-		if (!xf_AppWindowFromX11Window(xfc, window))
++		xfAppWindow* appWindow = xf_AppWindowFromX11Window(xfc, window);
++		xf_rail_return_window(appWindow);
++		if (!appWindow)
+ 			return TRUE;
+ 
+ 		/* Translate to desktop coordinates */
+@@ -536,7 +538,9 @@ BOOL xf_generic_ButtonEvent(xfContext* xfc, int x, int y, int button, Window win
+ 			if (app)
+ 			{
+ 				/* make sure window exists */
+-				if (!xf_AppWindowFromX11Window(xfc, window))
++				xfAppWindow* appWindow = xf_AppWindowFromX11Window(xfc, window);
++				xf_rail_return_window(appWindow);
++				if (!appWindow)
+ 					return TRUE;
+ 
+ 				/* Translate to desktop coordinates */
+@@ -694,6 +698,7 @@ static BOOL xf_event_FocusIn(xfContext* xfc, const XFocusInEvent* event, BOOL ap
+ 		 */
+ 		if (appWindow)
+ 			xf_rail_adjust_position(xfc, appWindow);
++		xf_rail_return_window(appWindow);
+ 	}
+ 
+ 	xf_keyboard_focus_in(xfc);
+@@ -734,12 +739,13 @@ static BOOL xf_event_ClientMessage(xfContext* xfc, const XClientMessageEvent* ev
+ 	{
+ 		if (app)
+ 		{
++			BOOL rc = TRUE;
+ 			xfAppWindow* appWindow = xf_AppWindowFromX11Window(xfc, event->window);
+ 
+ 			if (appWindow)
+-				return xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_CLOSE);
+-
+-			return TRUE;
++				rc = xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_CLOSE);
++			xf_rail_return_window(appWindow);
++			return rc;
+ 		}
+ 		else
+ 		{
+@@ -772,6 +778,7 @@ static BOOL xf_event_EnterNotify(xfContext* xfc, const XEnterWindowEvent* event,
+ 
+ 		/* keep track of which window has focus so that we can apply pointer updates */
+ 		xfc->appWindow = appWindow;
++		xf_rail_return_window(appWindow);
+ 	}
+ 
+ 	return TRUE;
+@@ -793,6 +800,7 @@ static BOOL xf_event_LeaveNotify(xfContext* xfc, const XLeaveWindowEvent* event,
+ 		/* keep track of which window has focus so that we can apply pointer updates */
+ 		if (xfc->appWindow == appWindow)
+ 			xfc->appWindow = NULL;
++		xf_rail_return_window(appWindow);
+ 	}
+ 	return TRUE;
+ }
+@@ -893,6 +901,7 @@ static BOOL xf_event_ConfigureNotify(xfContext* xfc, const XConfigureEvent* even
+ 					xf_rail_adjust_position(xfc, appWindow);
+ 			}
+ 		}
++		xf_rail_return_window(appWindow);
+ 	}
+ 	return xf_pointer_update_scale(xfc);
+ }
+@@ -916,6 +925,7 @@ static BOOL xf_event_MapNotify(xfContext* xfc, const XMapEvent* event, BOOL app)
+ 			// xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_RESTORE);
+ 			appWindow->is_mapped = TRUE;
+ 		}
++		xf_rail_return_window(appWindow);
+ 	}
+ 
+ 	return TRUE;
+@@ -930,13 +940,14 @@ static BOOL xf_event_UnmapNotify(xfContext* xfc, const XUnmapEvent* event, BOOL
+ 		xf_keyboard_release_all_keypress(xfc);
+ 
+ 	if (!app)
+-		gdi_send_suppress_output(xfc->common.context.gdi, TRUE);
+-	else
++		return gdi_send_suppress_output(xfc->common.context.gdi, TRUE);
++
+ 	{
+ 		xfAppWindow* appWindow = xf_AppWindowFromX11Window(xfc, event->window);
+ 
+ 		if (appWindow)
+ 			appWindow->is_mapped = FALSE;
++		xf_rail_return_window(appWindow);
+ 	}
+ 
+ 	return TRUE;
+@@ -944,6 +955,7 @@ static BOOL xf_event_UnmapNotify(xfContext* xfc, const XUnmapEvent* event, BOOL
+ 
+ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event, BOOL app)
+ {
++	BOOL rc = TRUE;
+ 	WINPR_ASSERT(xfc);
+ 	WINPR_ASSERT(event);
+ 
+@@ -968,7 +980,7 @@ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event,
+ 			appWindow = xf_AppWindowFromX11Window(xfc, event->window);
+ 
+ 			if (!appWindow)
+-				return TRUE;
++				goto fail;
+ 		}
+ 
+ 		if (event->atom == xfc->_NET_WM_STATE)
+@@ -1040,8 +1052,7 @@ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event,
+ 				if (appWindow->rail_state != WINDOW_SHOW_MAXIMIZED)
+ 				{
+ 					appWindow->rail_state = WINDOW_SHOW_MAXIMIZED;
+-					return xf_rail_send_client_system_command(xfc, appWindow->windowId,
+-					                                          SC_MAXIMIZE);
++					rc = xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_MAXIMIZE);
+ 				}
+ 			}
+ 			else if (appWindow->minimized)
+@@ -1049,8 +1060,7 @@ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event,
+ 				if (appWindow->rail_state != WINDOW_SHOW_MINIMIZED)
+ 				{
+ 					appWindow->rail_state = WINDOW_SHOW_MINIMIZED;
+-					return xf_rail_send_client_system_command(xfc, appWindow->windowId,
+-					                                          SC_MINIMIZE);
++					rc = xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_MINIMIZE);
+ 				}
+ 			}
+ 			else
+@@ -1058,15 +1068,18 @@ static BOOL xf_event_PropertyNotify(xfContext* xfc, const XPropertyEvent* event,
+ 				if (appWindow->rail_state != WINDOW_SHOW && appWindow->rail_state != WINDOW_HIDE)
+ 				{
+ 					appWindow->rail_state = WINDOW_SHOW;
+-					return xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_RESTORE);
++					rc = xf_rail_send_client_system_command(xfc, appWindow->windowId, SC_RESTORE);
+ 				}
+ 			}
+ 		}
+ 		else if (minimizedChanged)
+-			gdi_send_suppress_output(xfc->common.context.gdi, minimized);
++			rc = gdi_send_suppress_output(xfc->common.context.gdi, minimized);
++
++	fail:
++		xf_rail_return_window(appWindow);
+ 	}
+ 
+-	return TRUE;
++	return rc;
+ }
+ 
+ static BOOL xf_event_suppress_events(xfContext* xfc, xfAppWindow* appWindow, const XEvent* event)
+@@ -1182,7 +1195,9 @@ BOOL xf_event_process(freerdp* instance, const XEvent* event)
+ 			/* Update "current" window for cursor change orders */
+ 			xfc->appWindow = appWindow;
+ 
+-			if (xf_event_suppress_events(xfc, appWindow, event))
++			const BOOL rc = xf_event_suppress_events(xfc, appWindow, event);
++			xf_rail_return_window(appWindow);
++			if (rc)
+ 				return TRUE;
+ 		}
+ 	}
+diff --git a/client/X11/xf_graphics.c b/client/X11/xf_graphics.c
+index a6950ad..5e68354 100644
+--- a/client/X11/xf_graphics.c
++++ b/client/X11/xf_graphics.c
+@@ -251,12 +251,14 @@ static Window xf_Pointer_get_window(xfContext* xfc)
+ 	}
+ 	if (xfc->remote_app)
+ 	{
++		Window w = 0;
++		HashTable_Lock(xfc->railWindows);
+ 		if (!xfc->appWindow)
+-		{
+ 			WLog_WARN(TAG, "xf_Pointer: Invalid appWindow");
+-			return 0;
+-		}
+-		return xfc->appWindow->handle;
++		else
++			w = xfc->appWindow->handle;
++		HashTable_Unlock(xfc->railWindows);
++		return w;
+ 	}
+ 	else
+ 	{
+diff --git a/client/X11/xf_rail.c b/client/X11/xf_rail.c
+index f931b50..2d79867 100644
+--- a/client/X11/xf_rail.c
++++ b/client/X11/xf_rail.c
+@@ -111,6 +111,7 @@ void xf_rail_send_activate(xfContext* xfc, Window xwindow, BOOL enabled)
+ 	activate.windowId = (UINT32)appWindow->windowId;
+ 	activate.enabled = enabled;
+ 	xfc->rail->ClientActivate(xfc->rail, &activate);
++	xf_rail_return_window(appWindow);
+ }
+ 
+ BOOL xf_rail_send_client_system_command(xfContext* xfc, UINT64 windowId, UINT16 command)
+@@ -255,6 +256,7 @@ BOOL xf_rail_paint_surface(xfContext* xfc, UINT64 windowId, const RECTANGLE_16*
+ 		                    updateRect.right - updateRect.left, updateRect.bottom - updateRect.top);
+ 	}
+ 	region16_uninit(&windowInvalidRegion);
++	xf_rail_return_window(appWindow);
+ 	return TRUE;
+ }
+ 
+@@ -729,61 +731,65 @@ static void xf_rail_set_window_icon(xfContext* xfc, xfAppWindow* railWindow, xfR
+ static BOOL xf_rail_window_icon(rdpContext* context, const WINDOW_ORDER_INFO* orderInfo,
+                                 const WINDOW_ICON_ORDER* windowIcon)
+ {
++	BOOL rc = FALSE;
+ 	xfContext* xfc = (xfContext*)context;
+-	xfAppWindow* railWindow = NULL;
+-	xfRailIcon* icon = NULL;
+ 	BOOL replaceIcon = 0;
+-	railWindow = xf_rail_get_window(xfc, orderInfo->windowId);
++	xfAppWindow* railWindow = xf_rail_get_window(xfc, orderInfo->windowId);
+ 
+ 	if (!railWindow)
+ 		return TRUE;
+ 
+-	icon = RailIconCache_Lookup(xfc->railIconCache, windowIcon->iconInfo->cacheId,
++	xfRailIcon* icon = RailIconCache_Lookup(xfc->railIconCache, windowIcon->iconInfo->cacheId,
+ 	                            windowIcon->iconInfo->cacheEntry);
+ 
+ 	if (!icon)
+ 	{
+ 		WLog_WARN(TAG, "failed to get icon from cache %02X:%04X", windowIcon->iconInfo->cacheId,
+ 		          windowIcon->iconInfo->cacheEntry);
+-		return FALSE;
+ 	}
+-
+-	if (!convert_rail_icon(windowIcon->iconInfo, icon))
++	else if (!convert_rail_icon(windowIcon->iconInfo, icon))
+ 	{
+ 		WLog_WARN(TAG, "failed to convert icon for window %08X", orderInfo->windowId);
+-		return FALSE;
+ 	}
+-
+-	replaceIcon = !!(orderInfo->fieldFlags & WINDOW_ORDER_STATE_NEW);
+-	xf_rail_set_window_icon(xfc, railWindow, icon, replaceIcon);
+-	return TRUE;
++	else
++	{
++		replaceIcon = !!(orderInfo->fieldFlags & WINDOW_ORDER_STATE_NEW);
++		xf_rail_set_window_icon(xfc, railWindow, icon, replaceIcon);
++		rc = TRUE;
++	}
++	xf_rail_return_window(railWindow);
++	return rc;
+ }
+ 
+ static BOOL xf_rail_window_cached_icon(rdpContext* context, const WINDOW_ORDER_INFO* orderInfo,
+                                        const WINDOW_CACHED_ICON_ORDER* windowCachedIcon)
+ {
++	BOOL rc = FALSE;
+ 	xfContext* xfc = (xfContext*)context;
+-	xfAppWindow* railWindow = NULL;
+-	xfRailIcon* icon = NULL;
++	WINPR_ASSERT(orderInfo);
++
+ 	BOOL replaceIcon = 0;
+-	railWindow = xf_rail_get_window(xfc, orderInfo->windowId);
++	xfAppWindow* railWindow = xf_rail_get_window(xfc, orderInfo->windowId);
+ 
+ 	if (!railWindow)
+ 		return TRUE;
+ 
+-	icon = RailIconCache_Lookup(xfc->railIconCache, windowCachedIcon->cachedIcon.cacheId,
++	xfRailIcon* icon = RailIconCache_Lookup(xfc->railIconCache, windowCachedIcon->cachedIcon.cacheId,
+ 	                            windowCachedIcon->cachedIcon.cacheEntry);
+ 
+ 	if (!icon)
+ 	{
+ 		WLog_WARN(TAG, "failed to get icon from cache %02X:%04X",
+ 		          windowCachedIcon->cachedIcon.cacheId, windowCachedIcon->cachedIcon.cacheEntry);
+-		return FALSE;
+ 	}
+-
+-	replaceIcon = !!(orderInfo->fieldFlags & WINDOW_ORDER_STATE_NEW);
+-	xf_rail_set_window_icon(xfc, railWindow, icon, replaceIcon);
+-	return TRUE;
++	else
++	{
++		replaceIcon = !!(orderInfo->fieldFlags & WINDOW_ORDER_STATE_NEW);
++		xf_rail_set_window_icon(xfc, railWindow, icon, replaceIcon);
++		rc = TRUE;
++	}
++	xf_rail_return_window(railWindow);
++	return rc;
+ }
+ 
+ static BOOL xf_rail_notify_icon_common(rdpContext* context, const WINDOW_ORDER_INFO* orderInfo,
+@@ -1023,6 +1029,7 @@ static UINT xf_rail_server_local_move_size(RailClientContext* context,
+ 	else
+ 		xf_EndLocalMoveSize(xfc, appWindow);
+ 
++	xf_rail_return_window(appWindow);
+ 	return CHANNEL_RC_OK;
+ }
+ 
+@@ -1044,6 +1051,7 @@ static UINT xf_rail_server_min_max_info(RailClientContext* context,
+ 		                       minMaxInfo->minTrackHeight, minMaxInfo->maxTrackWidth,
+ 		                       minMaxInfo->maxTrackHeight);
+ 	}
++	xf_rail_return_window(appWindow);
+ 
+ 	return CHANNEL_RC_OK;
+ }
+@@ -1215,7 +1223,20 @@ xfAppWindow* xf_rail_get_window(xfContext* xfc, UINT64 id)
+ 		return NULL;
+ 
+ 	if (!xfc->railWindows)
+-		return FALSE;
++		return NULL;
++
++	HashTable_Lock(xfc->railWindows);
++	xfAppWindow* window = HashTable_GetItemValue(xfc->railWindows, &id);
++	if (!window)
++		HashTable_Unlock(xfc->railWindows);
++
++	return window;
++}
++
++void xf_rail_return_window(xfAppWindow* window)
++{
++	if (!window)
++		return;
+ 
+-	return HashTable_GetItemValue(xfc->railWindows, &id);
++	HashTable_Unlock(window->xfc->railWindows);
+ }
+diff --git a/client/X11/xf_rail.h b/client/X11/xf_rail.h
+index 9cd54f0..8e8ed33 100644
+--- a/client/X11/xf_rail.h
++++ b/client/X11/xf_rail.h
+@@ -37,6 +37,9 @@ void xf_rail_disable_remoteapp_mode(xfContext* xfc);
+ 
+ xfAppWindow* xf_rail_add_window(xfContext* xfc, UINT64 id, UINT32 x, UINT32 y, UINT32 width,
+                                 UINT32 height, UINT32 surfaceId);
++
++void xf_rail_return_window(xfAppWindow* window);
++
+ xfAppWindow* xf_rail_get_window(xfContext* xfc, UINT64 id);
+ 
+ BOOL xf_rail_del_window(xfContext* xfc, UINT64 id);
+diff --git a/client/X11/xf_window.c b/client/X11/xf_window.c
+index cf3d8bc..801efbc 100644
+--- a/client/X11/xf_window.c
++++ b/client/X11/xf_window.c
+@@ -1412,25 +1412,29 @@ xfAppWindow* xf_AppWindowFromX11Window(xfContext* xfc, Window wnd)
+ 	if (!xfc->railWindows)
+ 		return NULL;
+ 
++	HashTable_Lock(xfc->railWindows);
+ 	size_t count = HashTable_GetKeys(xfc->railWindows, &pKeys);
+ 
+ 	for (size_t index = 0; index < count; index++)
+ 	{
+-		xfAppWindow* appWindow = xf_rail_get_window(xfc, *(UINT64*)pKeys[index]);
++		xfAppWindow* appWindow = HashTable_GetItemValue(xfc->railWindows, (void*)pKeys[index]);
+ 
+ 		if (!appWindow)
+ 		{
++			HashTable_Unlock(xfc->railWindows);
+ 			free(pKeys);
+ 			return NULL;
+ 		}
+ 
+ 		if (appWindow->handle == wnd)
+ 		{
++			HashTable_Unlock(xfc->railWindows);
+ 			free(pKeys);
+ 			return appWindow;
+ 		}
+ 	}
+ 
++	HashTable_Unlock(xfc->railWindows);
+ 	free(pKeys);
+ 	return NULL;
+ }
+@@ -1509,6 +1513,7 @@ UINT xf_AppUpdateWindowFromSurface(xfContext* xfc, gdiGfxSurface* surface)
+ 
+ 	rc = CHANNEL_RC_OK;
+ fail:
++	xf_rail_return_window(appWindow);
+ 	XFlush(xfc->display);
+ 	xf_unlock_x11(xfc);
+ 	return rc;
+@@ -1549,4 +1554,5 @@ void xf_XSetTransientForHint(xfContext* xfc, xfAppWindow* window)
+ 		WLog_WARN(TAG, "XSetTransientForHint [%d]{%s}", rc,
+ 		          x11_error_to_string(xfc, rc, buffer, sizeof(buffer)));
+ 	}
++	xf_rail_return_window(parent);
+ }
+diff --git a/client/X11/xf_window.h b/client/X11/xf_window.h
+index efbc67d..2384d61 100644
+--- a/client/X11/xf_window.h
++++ b/client/X11/xf_window.h
+@@ -203,6 +203,7 @@ void xf_SetWindowMinMaxInfo(xfContext* xfc, xfAppWindow* appWindow, int maxWidth
+ void xf_StartLocalMoveSize(xfContext* xfc, xfAppWindow* appWindow, int direction, int x, int y);
+ void xf_EndLocalMoveSize(xfContext* xfc, xfAppWindow* appWindow);
+ xfAppWindow* xf_AppWindowFromX11Window(xfContext* xfc, Window wnd);
++void xf_rail_return_window(xfAppWindow* window);
+ 
+ const char* window_styles_to_string(UINT32 style, char* buffer, size_t length);
+ const char* window_styles_ex_to_string(UINT32 styleEx, char* buffer, size_t length);
+-- 
+2.54.0
+

@@ -1,0 +1,170 @@
+From 4c5a54419f0d6b62454acf2069ca5bf97f6952e7 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 5 May 2026 11:04:31 +0000
+Subject: [PATCH] [client,x11] fix deadlock on output expose
+
+Backport of commit a278ff74117444c635c50ffa5084ecf517171f5a.
+
+Adapted for 3.10.3: `WINPR_ATTR_NODISCARD` attribute removed
+(not available in 3.10.3), C99 `bool` replaced with `BOOL`,
+adjusted hunk offsets.
+
+Made-with: Cursor
+---
+ client/X11/xf_client.c |  3 ++
+ client/X11/xf_event.c  | 78 +++++++++++++++++++++++++-----------------
+ client/X11/xf_event.h  |  3 ++
+ client/X11/xfreerdp.h  |  3 ++
+ 4 files changed, 56 insertions(+), 31 deletions(-)
+
+diff --git a/client/X11/xf_client.c b/client/X11/xf_client.c
+index 7ad30d6..08dc2ca 100644
+--- a/client/X11/xf_client.c
++++ b/client/X11/xf_client.c
+@@ -514,6 +514,9 @@ static BOOL xf_process_x_events(freerdp* instance)
+ 		xf_unlock_x11(xfc);
+ 		if (!status)
+ 			break;
++		status = xf_event_update_screen(instance);
++		if (!status)
++			break;
+ 	}
+ 
+ 	return status;
+diff --git a/client/X11/xf_event.c b/client/X11/xf_event.c
+index a1fbb84..172fb68 100644
+--- a/client/X11/xf_event.c
++++ b/client/X11/xf_event.c
+@@ -370,50 +370,30 @@ void xf_event_adjust_coordinates(xfContext* xfc, int* x, int* y)
+ 
+ static BOOL xf_event_Expose(xfContext* xfc, const XExposeEvent* event, BOOL app)
+ {
+-	int x = 0;
+-	int y = 0;
+-	int w = 0;
+-	int h = 0;
+-	rdpSettings* settings = NULL;
+-
+ 	WINPR_ASSERT(xfc);
+ 	WINPR_ASSERT(event);
+ 
+-	settings = xfc->common.context.settings;
++	rdpSettings* settings = xfc->common.context.settings;
+ 	WINPR_ASSERT(settings);
+ 
+ 	if (!app && (freerdp_settings_get_bool(settings, FreeRDP_SmartSizing) ||
+ 	             freerdp_settings_get_bool(settings, FreeRDP_MultiTouchGestures)))
+ 	{
+-		x = 0;
+-		y = 0;
+-		w = freerdp_settings_get_uint32(settings, FreeRDP_DesktopWidth);
+-		h = freerdp_settings_get_uint32(settings, FreeRDP_DesktopHeight);
++		xfc->exposedArea.x = 0;
++		xfc->exposedArea.y = 0;
++		xfc->exposedArea.w = freerdp_settings_get_uint32(settings, FreeRDP_DesktopWidth);
++		xfc->exposedArea.h = freerdp_settings_get_uint32(settings, FreeRDP_DesktopHeight);
+ 	}
+ 	else
+ 	{
+-		x = event->x;
+-		y = event->y;
+-		w = event->width;
+-		h = event->height;
++		xfc->exposedArea.x = event->x;
++		xfc->exposedArea.y = event->y;
++		xfc->exposedArea.w = event->width;
++		xfc->exposedArea.h = event->height;
+ 	}
+ 
+-	if (!app)
+-	{
+-		if (xfc->common.context.gdi->gfx)
+-		{
+-			xf_OutputExpose(xfc, x, y, w, h);
+-			return TRUE;
+-		}
+-		xf_draw_screen(xfc, x, y, w, h);
+-	}
+-	else
+-	{
+-		xfAppWindow* appWindow = xf_AppWindowFromX11Window(xfc, event->window);
+-		if (appWindow)
+-			xf_UpdateWindowArea(xfc, appWindow, x, y, w, h);
+-		xf_rail_return_window(appWindow, FALSE);
+-	}
++	xfc->exposedWindow = event->window;
++	xfc->exposeRequested = true;
+ 
+ 	return TRUE;
+ }
+@@ -1372,3 +1352,39 @@ BOOL xf_generic_RawButtonEvent(xfContext* xfc, int button, BOOL app, BOOL down)
+ 
+ 	return TRUE;
+ }
++
++BOOL xf_event_update_screen(freerdp* instance)
++{
++	WINPR_ASSERT(instance);
++
++	xfContext* xfc = (xfContext*)instance->context;
++	WINPR_ASSERT(xfc);
++
++	rdpSettings* settings = xfc->common.context.settings;
++	WINPR_ASSERT(settings);
++
++	if (!xfc->exposeRequested)
++		return TRUE;
++	xfc->exposeRequested = false;
++
++	if (!xfc->remote_app)
++	{
++		if (xfc->common.context.gdi->gfx)
++		{
++			xf_OutputExpose(xfc, xfc->exposedArea.x, xfc->exposedArea.y,
++			                xfc->exposedArea.w, xfc->exposedArea.h);
++			return TRUE;
++		}
++		xf_draw_screen(xfc, xfc->exposedArea.x, xfc->exposedArea.y, xfc->exposedArea.w,
++		               xfc->exposedArea.h);
++	}
++	else
++	{
++		xfAppWindow* appWindow = xf_AppWindowFromX11Window(xfc, xfc->exposedWindow);
++		if (appWindow)
++			xf_UpdateWindowArea(xfc, appWindow, xfc->exposedArea.x, xfc->exposedArea.y,
++			                    xfc->exposedArea.w, xfc->exposedArea.h);
++		xf_rail_return_window(appWindow, FALSE);
++	}
++	return TRUE;
++}
+diff --git a/client/X11/xf_event.h b/client/X11/xf_event.h
+index 2f4ab07..299d2d3 100644
+--- a/client/X11/xf_event.h
++++ b/client/X11/xf_event.h
+@@ -31,6 +31,9 @@ BOOL xf_event_action_script_init(xfContext* xfc);
+ void xf_event_action_script_free(xfContext* xfc);
+ 
+ BOOL xf_event_process(freerdp* instance, const XEvent* event);
++
++BOOL xf_event_update_screen(freerdp* instance);
++
+ void xf_event_SendClientEvent(xfContext* xfc, xfWindow* window, Atom atom, unsigned int numArgs,
+                               ...);
+ 
+diff --git a/client/X11/xfreerdp.h b/client/X11/xfreerdp.h
+index ba41553..677e3bc 100644
+--- a/client/X11/xfreerdp.h
++++ b/client/X11/xfreerdp.h
+@@ -319,6 +319,9 @@ struct xf_context
+ 	BOOL xi_event;
+ 	HANDLE pipethread;
+ 	wLog* log;
++	bool exposeRequested;
++	GDI_RGN exposedArea;
++	Window exposedWindow;
+ };
+ 
+ BOOL xf_create_window(xfContext* xfc);
+-- 
+2.54.0
+

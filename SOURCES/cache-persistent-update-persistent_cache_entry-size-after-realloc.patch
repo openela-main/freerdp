@@ -1,0 +1,54 @@
+From 1d86433a0f30490e1e0fdc3bb8f76d259ef67a9d Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 28 Apr 2026 05:14:58 +0000
+Subject: [PATCH] [cache,persistent] update PERSISTENT_CACHE_ENTRY::size after
+ realloc
+
+Backport of commit 1a890eb43492b5eb707cb3dd6fc908f696e8fc1c.
+
+WINPR_ASSERTING_INT_CAST replaced with plain cast (macro not available in 3.10.3).
+
+Made-with: Cursor
+---
+ libfreerdp/cache/persistent.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/libfreerdp/cache/persistent.c b/libfreerdp/cache/persistent.c
+index 16025b8..39be803 100644
+--- a/libfreerdp/cache/persistent.c
++++ b/libfreerdp/cache/persistent.c
+@@ -36,7 +36,7 @@ struct rdp_persistent_cache
+ 	int count;
+ 	char* filename;
+ 	BYTE* bmpData;
+-	UINT32 bmpSize;
++	size_t bmpSize;
+ };
+ 
+ static const char sig_str[] = "RDP8bmp";
+@@ -149,12 +149,11 @@ static int persistent_cache_read_entry_v3(rdpPersistentCache* persistent,
+ 	const UINT64 size = 4ull * entry3.width * entry3.height;
+ 	if (size > UINT32_MAX)
+ 		return -1;
+-	entry->size = (UINT32)size;
+ 	entry->flags = 0;
+ 
+-	if (entry->size > persistent->bmpSize)
++	if (size > persistent->bmpSize)
+ 	{
+-		persistent->bmpSize = entry->size;
++		persistent->bmpSize = size;
+ 		BYTE* bmpData = (BYTE*)winpr_aligned_recalloc(persistent->bmpData, persistent->bmpSize,
+ 		                                              sizeof(BYTE), 32);
+ 
+@@ -163,6 +162,7 @@ static int persistent_cache_read_entry_v3(rdpPersistentCache* persistent,
+ 
+ 		persistent->bmpData = bmpData;
+ 	}
++	entry->size = (UINT32)size;
+ 
+ 	entry->data = persistent->bmpData;
+ 
+-- 
+2.53.0
+

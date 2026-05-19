@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.2
+Release:        12%{?dist}.5
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -198,6 +198,53 @@ Patch:          codec-clear-update-CLEAR_VBAR_ENTRY-size-after-alloc.patch
 # https://github.com/FreeRDP/FreeRDP/commit/78677dc6e262f46937d00c3aa52381e4bb198fa5
 Patch:          codec-progressive-fail-progressive_rfx_quant_sub-on-invalid-values.patch
 Patch:          codec-progressive-fix-underflow-guard-in-progressive_rfx_quant_sub.patch
+
+# CVE-2026-26986
+# https://github.com/FreeRDP/FreeRDP/commit/b4f0f0a18fe53aa8d47d062f91471f4e9c5e0d51
+Patch:          client-x11-fix-xf_rail_window_common-cleanup.patch
+
+# CVE-2026-25997
+# https://github.com/FreeRDP/FreeRDP/commit/58409406afe7c2a8a71ed2dc8e22075be4f41c0c
+# https://github.com/FreeRDP/FreeRDP/commit/4c9f7e8a7129c8be15f6e2686559d3f17936677d
+Patch:          client-x11-fix-clipboard-update.patch
+Patch:          client-x11-fix-residual-race-in-xf_clipboard_formats_free.patch
+
+# CVE-2026-29775
+# https://github.com/FreeRDP/FreeRDP/commit/ffad58fd2b329efd81a3239e9d7e3c927b8e503f
+# https://github.com/FreeRDP/FreeRDP/commit/8270e0bb3d6726c947d57c93ba9caa92a052b557
+Patch:          cache-bitmap-overallocate-bitmap-cache.patch
+Patch:          cache-bitmap-initialize-overallocated-bitmap-cache-extra-slot.patch
+
+# CVE-2026-31884
+# https://github.com/FreeRDP/FreeRDP/commit/03b48b3601d867afccac1cdc6081de7a275edce7
+Patch:          codec-dsp-add-format-checks.patch
+
+# CVE-2026-31883
+# CVE-2026-31885
+# https://github.com/FreeRDP/FreeRDP/commit/16df2300e1e3f5a51f68fb1626429e58b531b7c8
+Patch:          codec-dsp-fix-array-bounds-checks.patch
+
+# CVE-2026-33987
+# https://github.com/FreeRDP/FreeRDP/commit/1a890eb43492b5eb707cb3dd6fc908f696e8fc1c
+Patch:          cache-persistent-update-persistent_cache_entry-size-after-realloc.patch
+
+# CVE-2026-33985
+# https://github.com/FreeRDP/FreeRDP/commit/c49d1ad43b8c7b32794d0250f2623c2dccd7ef25
+Patch:          codec-clear-update-clear_glyph_entry-count-after-alloc.patch
+
+# CVE-2026-33982
+# https://github.com/FreeRDP/FreeRDP/commit/a48dbde2c8a5b8b70a9d1c045d969a71afd6284c
+Patch:          cache-persist-use-winpr_aligned_calloc.patch
+
+# CVE-2026-25952
+# https://github.com/FreeRDP/FreeRDP/commit/1994e9844212a6dfe0ff12309fef520e888986b5
+# https://github.com/FreeRDP/FreeRDP/commit/78fd7f580d5f9e6d9d582d82e5ea96003844fbdf
+# https://github.com/FreeRDP/FreeRDP/commit/4ff57b68c2960fa414d03c78ff0e0660be1cc5bd
+# https://github.com/FreeRDP/FreeRDP/commit/a278ff74117444c635c50ffa5084ecf517171f5a
+Patch:          client-x11-lock-appwindow.patch
+Patch:          client-x11-improve-rails-window-locking.patch
+Patch:          client-x11-refactor-locking.patch
+Patch:          client-x11-fix-deadlock-on-output-expose.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -522,6 +569,23 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue May 05 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.5
+- Lock appWindow to fix use-after-free in RAIL mode (CVE-2026-25952)
+  Resolves: RHEL-159848
+
+* Wed Apr 29 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.4
+- Fix double free in xf_rail_window_common cleanup (CVE-2026-26986)
+- Fix clipboard use-after-free during auto-reconnect (CVE-2026-25997)
+- Fix heap-buffer-overflow in bitmap_cache_put (CVE-2026-29775)
+- Add DSP format checks (CVE-2026-31884)
+- Fix DSP array bounds checks (CVE-2026-31883)
+- Fix DSP array bounds checks (CVE-2026-31885)
+- Update PERSISTENT_CACHE_ENTRY::size after realloc (CVE-2026-33987)
+- Update CLEAR_GLYPH_ENTRY::count after alloc (CVE-2026-33985)
+- Use winpr_aligned_calloc in persistent cache (CVE-2026-33982)
+  Resolves: RHEL-159804, RHEL-159660, RHEL-161034, RHEL-161469
+  Resolves: RHEL-161505, RHEL-161072, RHEL-163654, RHEL-168462, RHEL-162931
+
 * Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.2
 - Update CLEAR_VBAR_ENTRY size after alloc (CVE-2026-33984)
 - Fail progressive_rfx_quant_sub on invalid values (CVE-2026-33983)
