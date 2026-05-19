@@ -27,13 +27,20 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        1%{?dist}.7
+Release:        7%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
 URL:            http://www.freerdp.com/
 
 Source0:        https://github.com/FreeRDP/FreeRDP/archive/%{version}/FreeRDP-%{version}.tar.gz
+
+# https://issues.redhat.com/browse/RHEL-113722
+Patch:          core-tcp-retry-all-DNS-entries-until-success.patch
+Patch:          core-tcp-Try-next-DNS-entry-on-connect-failure.patch
+Patch:          core-tcp-Don-t-ignore-connect-errors.patch
+Patch:          core-tcp-Fix-PreferIPv6OverIPv4-fallback-to-IPv4-add.patch
+Patch:          core-tcp-fix-double-free-in-get_next_addrinfo.patch
 
 # https://github.com/FreeRDP/FreeRDP/commit/c4a7c371342edf0d307cea728f56d3302f0ab38c
 Patch:          gdi-gfx-properly-clamp-SurfaceToSurface.patch
@@ -139,43 +146,6 @@ Patch:          channel-rdpsnd-only-clean-up-thread-before-free.patch
 # https://github.com/FreeRDP/FreeRDP/commit/169971607cece48384cb94632b829bd57336af0f
 Patch:          codec-nsc-limit-copy-area-in-nsc_process_message.patch
 Patch:          codec-nsc-fix-use-of-nsc_process_message.patch
-
-# CVE-2026-33984
-# https://github.com/FreeRDP/FreeRDP/commit/a2dde6d9832cb032e8cf12cab3da84dafbab9006
-Patch:          codec-clear-update-CLEAR_VBAR_ENTRY-size-after-alloc.patch
-
-# CVE-2026-33983
-# https://github.com/FreeRDP/FreeRDP/commit/78188ab479c8e6eb9ba2475b3732c76b4bbe5425
-# https://github.com/FreeRDP/FreeRDP/commit/78677dc6e262f46937d00c3aa52381e4bb198fa5
-Patch:          codec-progressive-fail-progressive_rfx_quant_sub-on-invalid-values.patch
-Patch:          codec-progressive-fix-underflow-guard-in-progressive_rfx_quant_sub.patch
-
-# CVE-2026-26986
-# https://github.com/FreeRDP/FreeRDP/commit/b4f0f0a18fe53aa8d47d062f91471f4e9c5e0d51
-Patch:          client-x11-fix-xf_rail_window_common-cleanup.patch
-
-# CVE-2026-27951
-# https://github.com/FreeRDP/FreeRDP/commit/118afc0b954ba9d5632b7836ad24e454555ed113
-Patch:          allocations-fix-growth-of-preallocated-buffers.patch
-
-# CVE-2026-29775
-# https://github.com/FreeRDP/FreeRDP/commit/ffad58fd2b329efd81a3239e9d7e3c927b8e503f
-# https://github.com/FreeRDP/FreeRDP/commit/8270e0bb3d6726c947d57c93ba9caa92a052b557
-Patch:          cache-bitmap-overallocate-bitmap-cache.patch
-Patch:          cache-bitmap-initialize-overallocated-bitmap-cache-extra-slot.patch
-
-# CVE-2026-31884
-# https://github.com/FreeRDP/FreeRDP/commit/03b48b3601d867afccac1cdc6081de7a275edce7
-Patch:          codec-dsp-add-format-checks.patch
-
-# CVE-2026-31883
-# CVE-2026-31885
-# https://github.com/FreeRDP/FreeRDP/commit/16df2300e1e3f5a51f68fb1626429e58b531b7c8
-Patch:          codec-dsp-fix-array-bounds-checks.patch
-
-# CVE-2026-33985
-# https://github.com/FreeRDP/FreeRDP/commit/c49d1ad43b8c7b32794d0250f2623c2dccd7ef25
-Patch:          codec-clear-update-clear_glyph_entry-count-after-alloc.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -434,44 +404,32 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
-* Tue Apr 28 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.7
-- Fix double free in xf_rail_window_common cleanup (CVE-2026-26986)
-- Fix growth of preallocated buffers (CVE-2026-27951)
-- Fix heap-buffer-overflow in bitmap_cache_put (CVE-2026-29775)
-- Add DSP format checks (CVE-2026-31884)
-- Fix DSP array bounds checks (CVE-2026-31883)
-- Fix DSP array bounds checks (CVE-2026-31885)
-- Update CLEAR_GLYPH_ENTRY::count after alloc (CVE-2026-33985)
-  Resolves: RHEL-159815, RHEL-155477, RHEL-161046, RHEL-161481
-  Resolves: RHEL-161517, RHEL-161084, RHEL-167803
-
-* Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.6
-- Update CLEAR_VBAR_ENTRY size after alloc (CVE-2026-33984)
-- Fail progressive_rfx_quant_sub on invalid values (CVE-2026-33983)
-  Resolves: RHEL-162958, RHEL-162978
-
-* Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.5
+* Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-7
 - Fix use of nsc_process_message
-  Resolves: RHEL-155993
+  Resolves: RHEL-155994
 
-* Fri Mar 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.4
+* Fri Mar 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-6
 - Backport several CVE fixes
-  Resolves: RHEL-148046, RHEL-148049, RHEL-148054, RHEL-148061, RHEL-148079
-  Resolves: RHEL-148094, RHEL-148096, RHEL-148104, RHEL-148939, RHEL-149029
-  Resolves: RHEL-149042, RHEL-149065, RHEL-155993
+  Resolves: RHEL-148052, RHEL-148053, RHEL-148056, RHEL-148075, RHEL-148081
+  Resolves: RHEL-148098, RHEL-148105, RHEL-148106, RHEL-148941, RHEL-149032
+  Resolves: RHEL-149043, RHEL-149066, RHEL-155994
 
-* Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.3
+* Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-5
 - Backport several CVE fixes
-  Resolves: RHEL-151988, RHEL-152215
+  Resolves: RHEL-151989, RHEL-152216
 
-* Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.2
+* Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-4
 - Backport several CVE fixes
-  Resolves: RHEL-148847, RHEL-148887, RHEL-149020
+  Resolves: RHEL-148849, RHEL-148891, RHEL-149030
 
-* Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1.1
+* Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-3
 - Backport several CVE fixes
-  Resolves: RHEL-142426, RHEL-142410, RHEL-142394, RHEL-142378, RHEL-142362,
-  Resolves: RHEL-142346, RHEL-142330
+  Resolves: RHEL-142427, RHEL-142411, RHEL-142395, RHEL-142379, RHEL-142363
+  Resolves: RHEL-142348, RHEL-142332
+
+* Fri Jan 16 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-2
+- Try next DNS entry on connect failure
+  Resolves: RHEL-113722
 
 * Thu May 09 2024 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-1
 - Update to 2.11.7 (CVE-2024-32039, CVE-2024-32040, CVE-2024-32041,
