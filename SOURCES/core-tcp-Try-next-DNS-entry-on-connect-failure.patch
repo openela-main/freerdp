@@ -1,0 +1,76 @@
+From e4adf227177fd807f47f8621a5e2568748619a23 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Wed, 14 Jan 2026 11:34:53 +0100
+Subject: [PATCH] [core,tcp] Try next DNS entry on connect failure
+
+Backport of commit bd67348eb3380a66b544835346191bd2138a5ba4.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ libfreerdp/core/tcp.c | 41 ++++++++++++++++++++++-------------------
+ 1 file changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/libfreerdp/core/tcp.c b/libfreerdp/core/tcp.c
+index 53e3a412f..8e7ee20bd 100644
+--- a/libfreerdp/core/tcp.c
++++ b/libfreerdp/core/tcp.c
+@@ -1241,34 +1241,37 @@ int freerdp_tcp_default_connect(rdpContext* context, rdpSettings* settings, cons
+ 			do
+ 			{
+ 				sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
++				if (sockfd >= 0)
++				{
++					if ((peerAddress = freerdp_tcp_address_to_string(
++					         (const struct sockaddr_storage*)addr->ai_addr, NULL)) != NULL)
++					{
++						WLog_DBG(TAG, "connecting to peer %s", peerAddress);
++						free(peerAddress);
++					}
++
++					if (!freerdp_tcp_connect_timeout(context, sockfd, addr->ai_addr,
++					                                 addr->ai_addrlen, timeout))
++					{
++						close(sockfd);
++						sockfd = -1;
++					}
++				}
++
+ 				if (sockfd < 0)
+ 				{
+ 					const int lrc = get_next_addrinfo(context, addr->ai_next, &addr,
+ 					                                  FREERDP_ERROR_CONNECT_FAILED);
+ 					if (lrc < 0)
++					{
++						freeaddrinfo(result);
++						freerdp_set_last_error_if_not(context, FREERDP_ERROR_CONNECT_FAILED);
++						WLog_ERR(TAG, "failed to connect to %s", hostname);
+ 						return lrc;
++					}
+ 				}
+ 			} while (sockfd < 0);
+ 
+-			if ((peerAddress = freerdp_tcp_address_to_string(
+-			         (const struct sockaddr_storage*)addr->ai_addr, NULL)) != NULL)
+-			{
+-				WLog_DBG(TAG, "connecting to peer %s", peerAddress);
+-				free(peerAddress);
+-			}
+-
+-			if (!freerdp_tcp_connect_timeout(context, sockfd, addr->ai_addr, addr->ai_addrlen,
+-			                                 timeout))
+-			{
+-				freeaddrinfo(result);
+-				close(sockfd);
+-
+-				freerdp_set_last_error_if_not(context, FREERDP_ERROR_CONNECT_FAILED);
+-
+-				WLog_ERR(TAG, "failed to connect to %s", hostname);
+-				return -1;
+-			}
+-
+ 			freeaddrinfo(result);
+ 		}
+ 	}
+-- 
+2.52.0
+

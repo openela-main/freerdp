@@ -1,0 +1,43 @@
+From 5a856bef31bdbecbaf69bd671d23add9779debd9 Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Wed, 14 Jan 2026 11:37:16 +0100
+Subject: [PATCH] [core,tcp] Don't ignore connect errors
+
+Backport of commit 0bdd8da0993231216a7bb4d5e6e33e47d817a944.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ libfreerdp/core/tcp.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/libfreerdp/core/tcp.c b/libfreerdp/core/tcp.c
+index 8e7ee20bd..6edfb6d71 100644
+--- a/libfreerdp/core/tcp.c
++++ b/libfreerdp/core/tcp.c
+@@ -857,12 +857,19 @@ static BOOL freerdp_tcp_connect_timeout(rdpContext* context, int sockfd, struct
+ 	if (WAIT_OBJECT_0 != status)
+ 		goto fail;
+ 
+-	const SSIZE_T res = recv(sockfd, NULL, 0, 0);
+-
+-	if (res == SOCKET_ERROR)
+ 	{
+-		if (WSAGetLastError() == WSAECONNRESET)
++		INT32 optval = 0;
++		socklen_t optlen = sizeof(optval);
++		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &optval, &optlen) < 0)
++			goto fail;
++
++		if (optval != 0)
++		{
++			char ebuffer[256] = { 0 };
++			WLog_DBG(TAG, "connect failed with error: %s [%" PRId32 "]",
++			         winpr_strerror(optval, ebuffer, sizeof(ebuffer)), optval);
+ 			goto fail;
++		}
+ 	}
+ 
+ 	status = WSAEventSelect(sockfd, handles[0], 0);
+-- 
+2.52.0
+

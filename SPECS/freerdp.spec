@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        5%{?dist}.8
+Release:        12%{?dist}.2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -55,6 +55,15 @@ Patch1:         Limit-threadpool-to-16-threads.patch
 Patch2:         Use-default-threadpool.patch
 Patch3:         Default-minimum-thread-count.patch
 Patch4:         Limit-minimum-threadpool-size.patch
+
+# https://issues.redhat.com/browse/RHEL-73724
+Patch:          core-connection-print-SSL-warnings-after-init.patch
+
+# https://issues.redhat.com/browse/RHEL-140099
+Patch:          core-tcp-Try-next-DNS-entry-on-connect-failure.patch
+Patch:          core-tcp-Don-t-ignore-connect-errors.patch
+Patch:          core-tcp-Fix-PreferIPv6OverIPv4-fallback-to-IPv4-add.patch
+Patch:          core-tcp-fix-double-free-in-get_next_addrinfo.patch
 
 # https://github.com/FreeRDP/FreeRDP/commit/c4a7c371342edf0d307cea728f56d3302f0ab38c
 Patch:          gdi-gfx-properly-clamp-SurfaceToSurface.patch
@@ -189,43 +198,6 @@ Patch:          codec-clear-update-CLEAR_VBAR_ENTRY-size-after-alloc.patch
 # https://github.com/FreeRDP/FreeRDP/commit/78677dc6e262f46937d00c3aa52381e4bb198fa5
 Patch:          codec-progressive-fail-progressive_rfx_quant_sub-on-invalid-values.patch
 Patch:          codec-progressive-fix-underflow-guard-in-progressive_rfx_quant_sub.patch
-
-# CVE-2026-26986
-# https://github.com/FreeRDP/FreeRDP/commit/b4f0f0a18fe53aa8d47d062f91471f4e9c5e0d51
-Patch:          client-x11-fix-xf_rail_window_common-cleanup.patch
-
-# CVE-2026-25997
-# https://github.com/FreeRDP/FreeRDP/commit/58409406afe7c2a8a71ed2dc8e22075be4f41c0c
-# https://github.com/FreeRDP/FreeRDP/commit/4c9f7e8a7129c8be15f6e2686559d3f17936677d
-Patch:          client-x11-fix-clipboard-update.patch
-Patch:          client-x11-fix-residual-race-in-xf_clipboard_formats_free.patch
-
-# CVE-2026-29775
-# https://github.com/FreeRDP/FreeRDP/commit/ffad58fd2b329efd81a3239e9d7e3c927b8e503f
-# https://github.com/FreeRDP/FreeRDP/commit/8270e0bb3d6726c947d57c93ba9caa92a052b557
-Patch:          cache-bitmap-overallocate-bitmap-cache.patch
-Patch:          cache-bitmap-initialize-overallocated-bitmap-cache-extra-slot.patch
-
-# CVE-2026-31884
-# https://github.com/FreeRDP/FreeRDP/commit/03b48b3601d867afccac1cdc6081de7a275edce7
-Patch:          codec-dsp-add-format-checks.patch
-
-# CVE-2026-31883
-# CVE-2026-31885
-# https://github.com/FreeRDP/FreeRDP/commit/16df2300e1e3f5a51f68fb1626429e58b531b7c8
-Patch:          codec-dsp-fix-array-bounds-checks.patch
-
-# CVE-2026-33987
-# https://github.com/FreeRDP/FreeRDP/commit/1a890eb43492b5eb707cb3dd6fc908f696e8fc1c
-Patch:          cache-persistent-update-persistent_cache_entry-size-after-realloc.patch
-
-# CVE-2026-33985
-# https://github.com/FreeRDP/FreeRDP/commit/c49d1ad43b8c7b32794d0250f2623c2dccd7ef25
-Patch:          codec-clear-update-clear_glyph_entry-count-after-alloc.patch
-
-# CVE-2026-33982
-# https://github.com/FreeRDP/FreeRDP/commit/a48dbde2c8a5b8b70a9d1c045d969a71afd6284c
-Patch:          cache-persist-use-winpr_aligned_calloc.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -398,6 +370,7 @@ find . -name "*.c" -exec chmod 664 {} \;
     -DWITH_TIMEZONE_COMPILED=OFF \
     -DWITH_TIMEZONE_FROM_FILE=ON \
     -DWITH_URIPARSER=%{?_with_uriparser:ON}%{?!_with_uriparser:OFF} \
+    -DWITH_VERBOSE_WINPR_ASSERT=OFF \
     -DWITH_VIDEO_FFMPEG=%{?_with_ffmpeg:ON}%{?!_with_ffmpeg:OFF} \
     -DWITH_WAYLAND=ON \
     -DWITH_WEBVIEW=%{?_with_webview:ON}%{?!_with_webview:OFF} \
@@ -549,47 +522,45 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
-* Wed Apr 29 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.8
-- Fix double free in xf_rail_window_common cleanup (CVE-2026-26986)
-- Fix clipboard use-after-free during auto-reconnect (CVE-2026-25997)
-- Fix heap-buffer-overflow in bitmap_cache_put (CVE-2026-29775)
-- Add DSP format checks (CVE-2026-31884)
-- Fix DSP array bounds checks (CVE-2026-31883)
-- Fix DSP array bounds checks (CVE-2026-31885)
-- Update PERSISTENT_CACHE_ENTRY::size after realloc (CVE-2026-33987)
-- Update CLEAR_GLYPH_ENTRY::count after alloc (CVE-2026-33985)
-- Use winpr_aligned_calloc in persistent cache (CVE-2026-33982)
-  Resolves: RHEL-159803, RHEL-159659, RHEL-161033, RHEL-161468
-  Resolves: RHEL-161504, RHEL-161071, RHEL-163653, RHEL-167791, RHEL-162930
-
-* Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.6
+* Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.2
 - Update CLEAR_VBAR_ENTRY size after alloc (CVE-2026-33984)
 - Fail progressive_rfx_quant_sub on invalid values (CVE-2026-33983)
-  Resolves: RHEL-162946, RHEL-162962
+  Resolves: RHEL-162947, RHEL-162963
 
-* Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.5
+* Thu Apr 09 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.1
+- Rebuilt for errata
+  Resolves: RHEL-155980
+
+* Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12
 - Fix use of nsc_process_message
 - Increase timeout for TestSynchCritical
-  Resolves: RHEL-155979
+  Resolves: RHEL-155980
 
-* Fri Mar 27 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.4
+* Fri Mar 27 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-11
 - Backport several CVE fixes
-  Resolves: RHEL-147948, RHEL-147949, RHEL-147956, RHEL-147963, RHEL-147964
-  Resolves: RHEL-147972, RHEL-147979, RHEL-147984, RHEL-147985, RHEL-148898
-  Resolves: RHEL-148978, RHEL-148984, RHEL-149051, RHEL-155979
+  Resolves: RHEL-147950, RHEL-147951, RHEL-147966, RHEL-147967, RHEL-147971
+  Resolves: RHEL-147997, RHEL-147998, RHEL-148006, RHEL-148007, RHEL-148900
+  Resolves: RHEL-148986, RHEL-148989, RHEL-149053, RHEL-155980
 
-* Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.3
+* Wed Mar 25 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-10
 - Backport several CVE fixes
-  Resolves: RHEL-151975, RHEL-152202
+  Resolves: RHEL-151976, RHEL-152203
 
-* Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.2
+* Tue Feb 17 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-9
 - Backport several CVE fixes
-  Resolves: RHEL-147912, RHEL-148815, RHEL-148859, RHEL-148892, RHEL-148973
+  Resolves: RHEL-147913, RHEL-148817, RHEL-148861, RHEL-148977, RHEL-148894
 
-* Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-5.1
+* Tue Jan 27 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-8
 - Backport several CVE fixes
-  Resolves: RHEL-142413, RHEL-142397, RHEL-142381, RHEL-142365, RHEL-142349
-  Resolves: RHEL-142333, RHEL-142317
+  Resolves: RHEL-142414, RHEL-142398, RHEL-142382, RHEL-142366, RHEL-142350
+  Resolves: RHEL-142334, RHEL-142318
+
+* Fri Jan 16 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-7
+- Try next DNS entry on connect failure
+  Resolves: RHEL-140099
+
+* Tue Dec 16 2025 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-6
+- Fix broken SSL checks and disable runtime checks (RHEL-73724)
 
 * Tue Sep 30 2025 Marek Kasik <mkasik@redhat.com> - 2:3.10.3-5
 - Silence abidiff

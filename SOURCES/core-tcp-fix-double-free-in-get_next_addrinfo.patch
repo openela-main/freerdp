@@ -1,0 +1,39 @@
+From 0a660bf3b3cf2660a4fa15bd37d8b8b3d03fbfef Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Wed, 14 Jan 2026 12:55:42 +0100
+Subject: [PATCH] [core,tcp] fix double free in get_next_addrinfo
+
+Backport of commit 48197426444b7b3587874b5eae175af1113beab8.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ libfreerdp/core/tcp.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/tcp.c b/libfreerdp/core/tcp.c
+index 83cc9af1e..a3e12d14b 100644
+--- a/libfreerdp/core/tcp.c
++++ b/libfreerdp/core/tcp.c
+@@ -1164,7 +1164,7 @@ static int get_next_addrinfo(rdpContext* context, struct addrinfo* input, struct
+ 
+ fail:
+ 	freerdp_set_last_error_if_not(context, errorCode);
+-	freeaddrinfo(input);
++	*result = NULL;
+ 	return -1;
+ }
+ 
+@@ -1284,7 +1284,10 @@ int freerdp_tcp_default_connect(rdpContext* context, rdpSettings* settings, cons
+ 			const int rc =
+ 			    get_next_addrinfo(context, result, &addr, FREERDP_ERROR_DNS_NAME_NOT_FOUND);
+ 			if (rc < 0)
++			{
++				freeaddrinfo(result);
+ 				return rc;
++			}
+ 
+ 			do
+ 			{
+-- 
+2.52.0
+
