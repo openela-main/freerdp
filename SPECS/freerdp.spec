@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.5
+Release:        12%{?dist}.6
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -245,6 +245,30 @@ Patch:          client-x11-lock-appwindow.patch
 Patch:          client-x11-improve-rails-window-locking.patch
 Patch:          client-x11-refactor-locking.patch
 Patch:          client-x11-fix-deadlock-on-output-expose.patch
+
+# CVE-2026-40033
+# https://github.com/FreeRDP/FreeRDP/commit/f951d8677ce6d34d9778b951f73b3072b01853cb
+Patch:          gdi-gfx-fix-bounds-checks.patch
+
+# CVE-2026-44421
+# https://github.com/FreeRDP/FreeRDP/commit/b877c8c0fef1b5ccda29ccd5a1a58696486545ed
+Patch:          gdi-gfx-ensure-the-cache-element-can-hold-the-data.patch
+
+# CVE-2026-45700
+# https://github.com/FreeRDP/FreeRDP/commit/4a065a941ae134a0433d1497c03b3c3eb91b9f85
+Patch:          codec-planar-fix-bounds-checks.patch
+
+# CVE-2026-44420
+# https://github.com/FreeRDP/FreeRDP/commit/0fba1f4dbff7585c9c99873d7c07d7dac46510c3
+# https://github.com/FreeRDP/FreeRDP/commit/d00dc5d3be369fb400344eb12e6882db2ee184f0
+Patch:          channels-cliprdr-validate-capabilitySetLength-in-server-caps.patch
+Patch:          channels-cliprdr-abort-on-duplicate-caps.patch
+
+# CVE-2026-44422
+# https://github.com/FreeRDP/FreeRDP/commit/668fcb49d4856fad28f685db54a572af2a284b50
+# https://github.com/FreeRDP/FreeRDP/commit/ae03a9ff981ce7be1ab09dba2cd319d54984f910
+Patch:          channels-rdpear-fix-ndr_read-checks.patch
+Patch:          channels-rdpear-disable-ndr-pointer-aliasing.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -569,6 +593,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Mon Jun 29 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.6
+- Backport several CVE fixes (CVE-2026-40033, CVE-2026-44420, CVE-2026-44421,
+  CVE-2026-44422, CVE-2026-45700)
+  Resolves: RHEL-186978, RHEL-186967, RHEL-186958, RHEL-186950, RHEL-186093
+
 * Tue May 05 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.5
 - Lock appWindow to fix use-after-free in RAIL mode (CVE-2026-25952)
   Resolves: RHEL-159848

@@ -1,0 +1,28 @@
+From 45898fbb38d755d2c3211ed6064e13ee9815f24c Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 30 Apr 2026 10:49:01 +0200
+Subject: [PATCH] [gdi,gfx] ensure the cache element can hold the data
+
+For future color format compatibility ensure that the bytes per
+pixel are MAX(4, FreeRDPGetBytesPerPixel(format))
+---
+ libfreerdp/gdi/gfx.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/gdi/gfx.c b/libfreerdp/gdi/gfx.c
+index d22405445..7ac597d92 100644
+--- a/libfreerdp/gdi/gfx.c
++++ b/libfreerdp/gdi/gfx.c
+@@ -1414,7 +1414,9 @@ static gdiGfxCacheEntry* gdi_GfxCacheEntryNew(UINT64 cacheKey, UINT32 width, UIN
+ 	cacheEntry->width = width;
+ 	cacheEntry->height = height;
+ 	cacheEntry->format = format;
+-	cacheEntry->scanline = gfx_align_scanline(cacheEntry->width * 4, 16);
++
++	const UINT32 bpp = MAX(4, FreeRDPGetBytesPerPixel(format));
++	cacheEntry->scanline = gfx_align_scanline(cacheEntry->width * bpp, 16);
+
+ 	if ((cacheEntry->width > 0) && (cacheEntry->height > 0))
+ 	{
+--
+2.52.0

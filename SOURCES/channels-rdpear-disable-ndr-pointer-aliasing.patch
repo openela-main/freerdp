@@ -1,0 +1,31 @@
+From ae03a9ff981ce7be1ab09dba2cd319d54984f910 Mon Sep 17 00:00:00 2001
+From: David Fort <contact@hardening-consulting.com>
+Date: Wed, 6 May 2026 09:52:33 +0200
+Subject: [PATCH] Fix for GHSA-j9q5-7g8m-jc9v, disable NDR pointer aliasing
+
+The usage of aliased pointers can be used to trigger a double free, or a type confusion
+(using the same memory location twice and pretend it's 2 different types of objects).
+As pointer aliasing is never seen in practice with RDPEAR, let's just return an error
+when we see an aliased pointer.
+---
+ channels/rdpear/common/ndr.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/channels/rdpear/common/ndr.c b/channels/rdpear/common/ndr.c
+index 6e4b10aa8..20cc31c6e 100644
+--- a/channels/rdpear/common/ndr.c
++++ b/channels/rdpear/common/ndr.c
+@@ -931,6 +931,11 @@ BOOL ndr_read_pointedMessageEx(NdrContext* context, wStream* s, ndr_refid ptrId,
+ 			return FALSE;
+ 		}
+ 	}
++	else
++	{
++		WLog_ERR(TAG, "aliased pointer aren't supported for now");
++		return FALSE;
++	}
+
+ 	*target = ret;
+ 	return TRUE;
+--
+2.54.0
