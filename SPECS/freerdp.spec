@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        9%{?dist}
+Release:        10%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -190,6 +190,10 @@ Patch42:        client-x11-lock-appwindow.patch
 Patch43:        client-x11-improve-rails-window-locking.patch
 Patch44:        client-x11-refactor-locking.patch
 Patch45:        client-x11-fix-deadlock-on-output-expose.patch
+
+# CVE-2026-45700
+# https://github.com/FreeRDP/FreeRDP/commit/4a065a941ae134a0433d1497c03b3c3eb91b9f85
+Patch46:        codec-planar-fix-bounds-checks.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -448,6 +452,10 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Wed Jun 24 2026 RHEL Packaging Agent <rhel-se-jotnar@redhat.com> - 2:2.11.7-10
+- Fix incorrect bounds checks in planar codec (CVE-2026-45700)
+  Resolves: RHEL-186983
+
 * Tue May 05 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-9
 - Lock appWindow to fix use-after-free in RAIL mode (CVE-2026-25952)
   Resolves: RHEL-159850
