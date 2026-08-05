@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.6
+Release:        12%{?dist}.7
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -269,6 +269,13 @@ Patch:          channels-cliprdr-abort-on-duplicate-caps.patch
 # https://github.com/FreeRDP/FreeRDP/commit/ae03a9ff981ce7be1ab09dba2cd319d54984f910
 Patch:          channels-rdpear-fix-ndr_read-checks.patch
 Patch:          channels-rdpear-disable-ndr-pointer-aliasing.patch
+
+# CVE-2026-55827
+# https://github.com/FreeRDP/FreeRDP/pull/12899
+# https://github.com/FreeRDP/FreeRDP/commit/7bbb52a193deed5943a041c9859db7ee036044a4
+# https://github.com/FreeRDP/FreeRDP/commit/3c4ae49f38aa0ea9b073025eb468131375e518ff
+Patch:          core-orders-add-codecID-checks.patch
+Patch:          gdi-graphics-fix-gdi_Bitmap_Decompress.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -593,6 +600,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Sat Jul 11 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.7
+- Add codecID checks for CACHE_BITMAP_V3_ORDER (CVE-2026-55827)
+- Fix boundary checks in gdi_Bitmap_Decompress (CVE-2026-55827)
+  Resolves: RHEL-194327
+
 * Mon Jun 29 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.6
 - Backport several CVE fixes (CVE-2026-40033, CVE-2026-44420, CVE-2026-44421,
   CVE-2026-44422, CVE-2026-45700)

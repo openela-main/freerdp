@@ -1,0 +1,185 @@
+From 053e4d7a9984d607b086816f1732bcc2619677c8 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 16 Jun 2026 10:59:40 +0200
+Subject: [PATCH] [gdi,graphics] fix gdi_Bitmap_Decompress
+
+* Properly check boundaries when decoding data
+---
+ libfreerdp/gdi/graphics.c | 131 +++++++++++++++++++++++---------------
+ 1 file changed, 78 insertions(+), 53 deletions(-)
+
+diff --git a/libfreerdp/gdi/graphics.c b/libfreerdp/gdi/graphics.c
+index eec5cd6b9..6f82c2eda 100644
+--- a/libfreerdp/gdi/graphics.c
++++ b/libfreerdp/gdi/graphics.c
+@@ -130,26 +130,55 @@ static BOOL gdi_Bitmap_Paint(rdpContext* context, rdpBitmap* bitmap)
+ 	                  gdi_bitmap->hdc, 0, 0, GDI_SRCCOPY, &context->gdi->palette);
+ }
+ 
++static BOOL gdi_Bitmap_Rfx(rdpContext* context, rdpBitmap* bitmap, const BYTE* pSrcData,
++                           UINT32 SrcSize)
++{
++	WINPR_ASSERT(context);
++	WINPR_ASSERT(bitmap);
++	WINPR_ASSERT(pSrcData || (SrcSize == 0));
++
++	REGION16 invalidRegion;
++	region16_init(&invalidRegion);
++
++	const UINT32 stride = bitmap->width * FreeRDPGetBytesPerPixel(bitmap->format);
++
++	const BOOL rc =
++	    rfx_process_message(context->codecs->rfx, pSrcData, SrcSize, bitmap->left, bitmap->top,
++	                        bitmap->data, bitmap->format, stride, bitmap->height, &invalidRegion);
++	region16_uninit(&invalidRegion);
++
++	if (!rc)
++	{
++		WLog_ERR(TAG, "rfx_process_message failed");
++		return FALSE;
++	}
++	return TRUE;
++}
++
+ static BOOL gdi_Bitmap_Decompress(rdpContext* context, rdpBitmap* bitmap, const BYTE* pSrcData,
+                                   UINT32 DstWidth, UINT32 DstHeight, UINT32 bpp, UINT32 length,
+                                   BOOL compressed, UINT32 codecId)
+ {
++	WINPR_ASSERT(context);
++	WINPR_ASSERT(bitmap);
++
+ 	UINT32 SrcSize = length;
+ 	rdpGdi* gdi = context->gdi;
+-	UINT32 size = DstWidth * DstHeight;
++	WINPR_ASSERT(gdi);
++
+ 	bitmap->compressed = FALSE;
+ 	bitmap->format = gdi->dstFormat;
+ 
+ 	if ((FreeRDPGetBytesPerPixel(bitmap->format) == 0) || (DstWidth == 0) || (DstHeight == 0) ||
+ 	    (DstWidth > UINT32_MAX / DstHeight) ||
+-	    (size > (UINT32_MAX / FreeRDPGetBytesPerPixel(bitmap->format))))
++	    ((DstWidth * DstHeight) > (UINT32_MAX / FreeRDPGetBytesPerPixel(bitmap->format))))
+ 	{
+ 		WLog_ERR(TAG, "invalid input data");
+ 		return FALSE;
+ 	}
+ 
+-	size *= FreeRDPGetBytesPerPixel(bitmap->format);
+-	bitmap->length = size;
++	const UINT32 stride = DstWidth * FreeRDPGetBytesPerPixel(bitmap->format);
++	bitmap->length = stride * DstHeight;
+ 	bitmap->data = (BYTE*)winpr_aligned_malloc(bitmap->length, 16);
+ 
+ 	if (!bitmap->data)
+@@ -157,57 +186,53 @@ static BOOL gdi_Bitmap_Decompress(rdpContext* context, rdpBitmap* bitmap, const
+ 
+ 	if (compressed)
+ 	{
+-		if ((codecId == RDP_CODEC_ID_REMOTEFX) || (codecId == RDP_CODEC_ID_IMAGE_REMOTEFX))
++		WINPR_ASSERT(context->codecs);
++		switch (codecId)
+ 		{
+-			REGION16 invalidRegion;
+-			region16_init(&invalidRegion);
+-
+-			if (!rfx_process_message(context->codecs->rfx, pSrcData, SrcSize, bitmap->left,
+-			                         bitmap->top, bitmap->data, bitmap->format, gdi->stride,
+-			                         gdi->height, &invalidRegion))
++			case RDP_CODEC_ID_REMOTEFX:
++			case RDP_CODEC_ID_IMAGE_REMOTEFX:
++				if (!gdi_Bitmap_Rfx(context, bitmap, pSrcData, SrcSize))
++					return FALSE;
++				break;
++			case RDP_CODEC_ID_NSCODEC:
+ 			{
+-				WLog_ERR(TAG, "rfx_process_message failed");
+-				return FALSE;
+-			}
+-		}
+-		else if (codecId == RDP_CODEC_ID_NSCODEC)
+-		{
+-			const int status = nsc_process_message(
+-			    context->codecs->nsc, 32, DstWidth, DstHeight, pSrcData, SrcSize, bitmap->data,
+-			    bitmap->format, 0, 0, 0, DstWidth, DstHeight, FREERDP_FLIP_VERTICAL);
+-
+-			if (status < 1)
+-			{
+-				WLog_ERR(TAG, "nsc_process_message failed");
+-				return FALSE;
+-			}
+-
+-			return freerdp_image_copy_no_overlap(bitmap->data, bitmap->format, 0, 0, 0, DstWidth,
+-			                                     DstHeight, pSrcData, PIXEL_FORMAT_XRGB32, 0, 0, 0,
+-			                                     &gdi->palette, FREERDP_FLIP_VERTICAL);
+-		}
+-		else if (bpp < 32)
+-		{
+-			if (!interleaved_decompress(context->codecs->interleaved, pSrcData, SrcSize, DstWidth,
+-			                            DstHeight, bpp, bitmap->data, bitmap->format, 0, 0, 0,
+-			                            DstWidth, DstHeight, &gdi->palette))
+-			{
+-				WLog_ERR(TAG, "interleaved_decompress failed");
+-				return FALSE;
+-			}
+-		}
+-		else
+-		{
+-			const BOOL fidelity =
+-			    freerdp_settings_get_bool(context->settings, FreeRDP_DrawAllowDynamicColorFidelity);
+-			freerdp_planar_switch_bgr(context->codecs->planar, fidelity);
+-			if (!planar_decompress(context->codecs->planar, pSrcData, SrcSize, DstWidth, DstHeight,
+-			                       bitmap->data, bitmap->format, 0, 0, 0, DstWidth, DstHeight,
+-			                       TRUE))
+-			{
+-				WLog_ERR(TAG, "planar_decompress failed");
+-				return FALSE;
++				const int status = nsc_process_message(
++				    context->codecs->nsc, 32, DstWidth, DstHeight, pSrcData, SrcSize, bitmap->data,
++				    bitmap->format, stride, 0, 0, DstWidth, DstHeight, FREERDP_FLIP_VERTICAL);
++
++				if (status < 1)
++				{
++					WLog_ERR(TAG, "nsc_process_message failed");
++					return FALSE;
++				}
+ 			}
++			break;
++			default:
++				if (bpp < 32)
++				{
++					if (!interleaved_decompress(context->codecs->interleaved, pSrcData, SrcSize,
++					                            DstWidth, DstHeight, bpp, bitmap->data,
++					                            bitmap->format, stride, 0, 0, DstWidth, DstHeight,
++					                            &gdi->palette))
++					{
++						WLog_ERR(TAG, "interleaved_decompress failed");
++						return FALSE;
++					}
++				}
++				else
++				{
++					const BOOL fidelity = freerdp_settings_get_bool(
++					    context->settings, FreeRDP_DrawAllowDynamicColorFidelity);
++					freerdp_planar_switch_bgr(context->codecs->planar, fidelity);
++					if (!planar_decompress(
++					        context->codecs->planar, pSrcData, SrcSize, DstWidth, DstHeight,
++					        bitmap->data, bitmap->format, stride, 0, 0, DstWidth, DstHeight, TRUE))
++					{
++						WLog_ERR(TAG, "planar_decompress failed");
++						return FALSE;
++					}
++				}
++				break;
+ 		}
+ 	}
+ 	else
+@@ -230,7 +255,7 @@ static BOOL gdi_Bitmap_Decompress(rdpContext* context, rdpBitmap* bitmap, const
+ 			}
+ 		}
+ 
+-		if (!freerdp_image_copy_no_overlap(bitmap->data, bitmap->format, 0, 0, 0, DstWidth,
++		if (!freerdp_image_copy_no_overlap(bitmap->data, bitmap->format, stride, 0, 0, DstWidth,
+ 		                                   DstHeight, pSrcData, SrcFormat, 0, 0, 0, &gdi->palette,
+ 		                                   FREERDP_FLIP_VERTICAL))
+ 		{
