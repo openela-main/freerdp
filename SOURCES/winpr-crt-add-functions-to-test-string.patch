@@ -1,0 +1,313 @@
+From 65d51c15af42a4d6cce83eac416fa25af0c2ca93 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 9 Jul 2026 08:34:23 +0200
+Subject: [PATCH] [winpr,crt] add functions to test string
+
+* winpr_str_has_newlines to check for newlines in a string
+* winpr_str_is_valid_url and winpr_str_is_valid_urlN to check if a
+  string is a valid url
+---
+ winpr/include/winpr/string.h         |  25 ++++++
+ winpr/libwinpr/crt/CMakeLists.txt    |   8 ++
+ winpr/libwinpr/crt/string.c          | 115 +++++++++++++++++++++++++++
+ winpr/libwinpr/crt/test/TestString.c |  80 +++++++++++++++++++
+ 4 files changed, 228 insertions(+)
+
+diff --git a/winpr/include/winpr/string.h b/winpr/include/winpr/string.h
+index 45a4098cc..0821293ec 100644
+--- a/winpr/include/winpr/string.h
++++ b/winpr/include/winpr/string.h
+@@ -39,6 +39,31 @@ extern "C"
+ 	WINPR_API char* winpr_str_url_encode(const char* str, size_t len);
+ 	WINPR_API char* winpr_str_url_decode(const char* str, size_t len);
+ 
++	/** @brief checks if a string is a valid URL
++	 *
++	 *  @param str The string to check
++	 *  @return \b TRUE if valid, \b FALSE otherwise
++	 *  @since version 3.29.0
++	 */
++	WINPR_API BOOL winpr_str_is_valid_url(const char* str);
++
++	/** @brief checks if a string is a valid URL
++	 *
++	 *  @param str The string to check
++	 *  @param len The length of the string in bytes
++	 *  @return \b TRUE if valid, \b FALSE otherwise
++	 *  @since version 3.29.0
++	 */
++	WINPR_API BOOL winpr_str_is_valid_urlN(const char* str, size_t len);
++
++	/** @brief checks if a string contains newlines
++	 *
++	 *  @param str The string to check
++	 *  @return \b TRUE if it has newlines, \b FALSE otherwise
++	 *  @since version 3.29.0
++	 */
++	WINPR_API BOOL winpr_str_has_newlines(const char* str);
++
+ 	WINPR_API BOOL winpr_str_append(const char* what, char* buffer, size_t size,
+ 	                                const char* separator);
+ 
+diff --git a/winpr/libwinpr/crt/CMakeLists.txt b/winpr/libwinpr/crt/CMakeLists.txt
+index 18f6ad139..b2cc1cf94 100644
+--- a/winpr/libwinpr/crt/CMakeLists.txt
++++ b/winpr/libwinpr/crt/CMakeLists.txt
+@@ -17,6 +17,14 @@
+ 
+ set(CRT_FILES alignment.c conversion.c buffer.c memory.c unicode.c string.c)
+ 
++include(CheckSymbolExists)
++check_symbol_exists(regcomp regex.h WINPR_HAVE_REGCOMP)
++check_symbol_exists(regexec regex.h WINPR_HAVE_REGEXEC)
++check_symbol_exists(regfree regex.h WINPR_HAVE_REGFREE)
++if(WINPR_HAVE_REGCOMP AND WINPR_HAVE_REGEXEC AND WINPR_HAVE_REGFREE)
++  winpr_definition_add(WINPR_HAVE_REGCOMP)
++endif()
++
+ if(WITH_UNICODE_BUILTIN)
+   list(APPEND CRT_FILES unicode_builtin.c)
+ else()
+diff --git a/winpr/libwinpr/crt/string.c b/winpr/libwinpr/crt/string.c
+index 4dec0b141..b78bbdc2e 100644
+--- a/winpr/libwinpr/crt/string.c
++++ b/winpr/libwinpr/crt/string.c
+@@ -33,6 +33,10 @@
+ #include <uriparser/Uri.h>
+ #endif
+ 
++#if defined(WINPR_HAVE_REGCOMP)
++#include <regex.h>
++#endif
++
+ /* String Manipulation (CRT): http://msdn.microsoft.com/en-us/library/f0151s4x.aspx */
+ 
+ #include "../log.h"
+@@ -43,6 +47,28 @@
+ #endif
+ 
+ #if defined(WITH_URIPARSER)
++BOOL winpr_str_is_valid_urlN(const char* str, size_t len)
++{
++	if (!str || (len == 0))
++		return FALSE;
++
++	const char* errorPos = NULL;
++	UriUriA uri = { 0 };
++	const int rc = uriParseSingleUriExA(&uri, str, &str[len - 1], &errorPos);
++	return rc == URI_SUCCESS;
++}
++
++BOOL winpr_str_is_valid_url(const char* str)
++{
++	if (!str)
++		return FALSE;
++
++	const char* errorPos = NULL;
++	UriUriA uri = { 0 };
++	const int rc = uriParseSingleUriA(&uri, str, &errorPos);
++	return rc == URI_SUCCESS;
++}
++
+ char* winpr_str_url_decode(const char* str, size_t len)
+ {
+ 	char* dst = strndup(str, len);
+@@ -155,6 +181,59 @@ char* winpr_str_url_encode(const char* str, size_t len)
+ 	}
+ 	return dst;
+ }
++
++BOOL winpr_str_is_valid_urlN(const char* str, size_t len)
++{
++	if (!str || (len == 0))
++		return FALSE;
++
++	char* url = strndup(str, len);
++	if (!url)
++		return FALSE;
++
++	const BOOL rc = winpr_str_is_valid_url(url);
++	free(url);
++	return rc;
++}
++
++#if defined(_WIN32)
++#include <shlwapi.h>
++
++BOOL winpr_str_is_valid_url(const char* str)
++{
++	if (!str)
++		return FALSE;
++	return PathIsURLA(str);
++}
++
++#elif defined(WINPR_HAVE_REGCOMP)
++BOOL winpr_str_is_valid_url(const char* str)
++{
++	if (!str)
++		return FALSE;
++	regex_t regex = { 0 };
++	const char pattern[] = "^([a-z]+://)?([a-zA-Z0-9.-]+)(:[0-9]+)?(/[a-zA-Z0-9./?=&%-]*)?$";
++
++	int ret = regcomp(&regex, pattern, REG_EXTENDED);
++	if (ret)
++	{
++		printf("Could not compile regex\n");
++		return FALSE;
++	}
++
++	ret = regexec(&regex, str, 0, NULL, 0);
++	regfree(&regex);
++	return ret == 0;
++}
++
++#else
++BOOL winpr_str_is_valid_url(WINPR_ATTR_UNUSED const char* str)
++{
++	WLog_WARN(TAG, "URL validation not supported by your build, not performing check. Build with "
++	               "-DWITH_URIPARSER=ON to fix.");
++	return TRUE;
++}
++#endif
+ #endif
+ 
+ BOOL winpr_str_append(const char* what, char* buffer, size_t size, const char* separator)
+@@ -845,3 +924,39 @@ WCHAR* wcsndup(const WCHAR* s, size_t n)
+ 	memcpy(copy, s, n * sizeof(WCHAR));
+ 	return copy;
+ }
++
++BOOL winpr_str_has_newlines(const char* str)
++{
++	if (!str)
++		return FALSE;
++	do
++	{
++		char c = *str++;
++		switch (c)
++		{
++			case '\r':
++			case '\n':
++			case 0x0b:       /* VT vertical tab */
++			case 0x0c:       /* FF form feed */
++			case (char)0x85: /* NEL next line */
++				return TRUE;
++			case 0x20:
++			{
++				switch (*str)
++				{
++					case 0x28: /* LS line separator */
++					case 0x29: /* PS paragraph separator */
++						return TRUE;
++					default:
++						break;
++				}
++			}
++			break;
++
++			case '\0':
++				return FALSE;
++			default:
++				break;
++		}
++	} while (1);
++}
+diff --git a/winpr/libwinpr/crt/test/TestString.c b/winpr/libwinpr/crt/test/TestString.c
+index e77bf02da..0ab06ab78 100644
+--- a/winpr/libwinpr/crt/test/TestString.c
++++ b/winpr/libwinpr/crt/test/TestString.c
+@@ -104,6 +104,80 @@ fail:
+ 	return rc;
+ }
+ 
++
++static BOOL test_valid_url(void)
++{
++	struct test_t
++	{
++		char* string;
++		size_t len;
++		BOOL isUrl;
++	};
++
++	static const struct test_t tests[] = { { "foo.bar.blabla", 15, TRUE },
++		                                   { "somehostname", 12, TRUE },
++		                                   { "somehostname:1234", 17, TRUE },
++		                                   { "tsv://somehostname", 18, TRUE },
++		                                   { "tsv://somehostname/path/foo/gaga", 32, TRUE },
++		                                   { "tsv://somehostname:1234", 23, TRUE },
++		                                   { "tsv://somehostname:1234/path/foo", 33, TRUE },
++		                                   { "lala\rgaga\n", 12, FALSE },
++		                                   { "192.168.0.1", 11, TRUE },
++		                                   //{ "192.168.0.1:1234", 16, FALSE },
++		                                   //{ "192.168.0.1:1234/foo/", 21, FALSE },
++		                                   { "192.168.0.1/bar/foo/", 20, TRUE },
++		                                   { "[::1]", 5, FALSE },
++		                                   { "[::1]:1234", 8, FALSE },
++		                                   { "[2001:db8:3333:4444:5555:6666:7777:8888]", 40,
++		                                     FALSE },
++		                                   { "[2001:db8::1]", 13, FALSE } };
++	BOOL rc = TRUE;
++	for (size_t x = 0; x < ARRAYSIZE(tests); x++)
++	{
++		const struct test_t* cur = &tests[x];
++
++		const BOOL rc1 = winpr_str_is_valid_url(cur->string);
++		const BOOL rc2 = winpr_str_is_valid_urlN(cur->string, cur->len);
++
++#if defined(WINPR_HAVE_REGCOMP) || defined(WITH_URIPARSER)
++		if (rc1 != rc2)
++			rc = FALSE;
++		if (rc1 != cur->isUrl)
++			rc = FALSE;
++#else
++		fprintf(stderr, "[%s] TODO: !defined(WINPR_HAVE_REGCOMP) && !defined(WITH_URIPARSER)\n",
++		        __func__);
++#endif
++	}
++
++	return rc;
++}
++
++static BOOL test_newline(void)
++{
++	struct test_t
++	{
++		char* string;
++		size_t len;
++		BOOL hasNewlines;
++	};
++
++	const struct test_t tests[] = { { "foo.bar.blabla", 15, FALSE },
++		                            { "somehostname", 12, FALSE },
++		                            { "lala\rgaga\n", 13, TRUE } };
++
++	for (size_t x = 0; x < ARRAYSIZE(tests); x++)
++	{
++		const struct test_t* cur = &tests[x];
++
++		const BOOL rc1 = winpr_str_has_newlines(cur->string);
++		if (rc1 != cur->hasNewlines)
++			return FALSE;
++	}
++
++	return TRUE;
++}
++
+ int TestString(int argc, char* argv[])
+ {
+ 	const WCHAR* p = NULL;
+@@ -114,6 +188,12 @@ int TestString(int argc, char* argv[])
+ 	WINPR_UNUSED(argc);
+ 	WINPR_UNUSED(argv);
+ 
++	if (!test_valid_url())
++		return -1;
++
++	if (!test_newline())
++		return -1;
++
+ 	if (!test_winpr_asprintf())
+ 		return -1;
+ 
+

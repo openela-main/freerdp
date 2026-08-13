@@ -1,0 +1,34 @@
+From 1c4b028928be8f38e968d8bfb7d3fb6864540b42 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 14 Jul 2026 12:30:27 +0200
+Subject: [PATCH] [core,redirection] relax checks
+
+* TsvUrl is opaque, do not assume any format
+* LoadBalanceInfo is opaque, do not assume any format
+---
+ libfreerdp/core/redirection.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/libfreerdp/core/redirection.c b/libfreerdp/core/redirection.c
+index 6f7dcdb57..f9690567d 100644
+--- a/libfreerdp/core/redirection.c
++++ b/libfreerdp/core/redirection.c
+@@ -714,9 +714,6 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		if (!rdp_redirection_read_data(LB_LOAD_BALANCE_INFO, s, &redirection->LoadBalanceInfoLength,
+ 		                               &redirection->LoadBalanceInfo))
+ 			return STATE_RUN_FAILED;
+-		if (!winpr_str_is_valid_urlN((const char*)redirection->LoadBalanceInfo,
+-		                             redirection->LoadBalanceInfoLength))
+-			return STATE_RUN_FAILED;
+ 	}
+ 
+ 	if (redirection->flags & LB_USERNAME)
+@@ -810,8 +807,6 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		if (!rdp_redirection_read_data(LB_CLIENT_TSV_URL, s, &redirection->TsvUrlLength,
+ 		                               &redirection->TsvUrl))
+ 			return STATE_RUN_FAILED;
+-		if (!winpr_str_is_valid_urlN((const char*)redirection->TsvUrl, redirection->TsvUrlLength))
+-			return STATE_RUN_FAILED;
+ 	}
+ 
+ 	if (redirection->flags & LB_REDIRECTION_GUID)

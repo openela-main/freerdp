@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.7
+Release:        12%{?dist}.8
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -276,6 +276,38 @@ Patch:          channels-rdpear-disable-ndr-pointer-aliasing.patch
 # https://github.com/FreeRDP/FreeRDP/commit/3c4ae49f38aa0ea9b073025eb468131375e518ff
 Patch:          core-orders-add-codecID-checks.patch
 Patch:          gdi-graphics-fix-gdi_Bitmap_Decompress.patch
+
+# CVE-2026-64624
+# https://github.com/FreeRDP/FreeRDP/commit/e551807abfb87a8a1890c8b7e36fe421cd5596be
+# https://github.com/FreeRDP/FreeRDP/commit/22c5deea52404f51a13276b3abda44e1e60704cf
+Patch:          client-common-deprecate-cli-options-in-rdp-files.patch
+Patch:          client-common-deactivate-cli-parsing-in-rdp-files.patch
+
+# CVE-2026-64621
+# https://github.com/FreeRDP/FreeRDP/commit/7696267929ae8ba045c1bbe275b3915653828313
+Patch:          client-common-fix-double-free.patch
+
+# CVE-2026-64620
+# https://github.com/FreeRDP/FreeRDP/commit/27014741a8c22a34d3040c559c82f4ed82841bef
+Patch:          crypto-fix-out-buffer-check.patch
+
+# CVE-2026-68580
+# https://github.com/FreeRDP/FreeRDP/commit/3bf07d4470bbe42faf4ef8197c8fe1b6b759b00f
+# https://github.com/FreeRDP/FreeRDP/commit/9ca0aa69c4679b2be274ac59f30e76d0fa81aaf4
+Patch:          channels-audin-limit-FramesPerPacket.patch
+Patch:          channels-audin-tighten-parameter-checks.patch
+
+# CVE-2026-67299
+# https://github.com/FreeRDP/FreeRDP/commit/172edbddd24f33033b9eafae6ea1fff0641a24f4
+Patch:          core-message-fix-update_message_WindowIcon.patch
+
+# CVE-2026-67289
+# https://github.com/FreeRDP/FreeRDP/commit/f163b2d2080d922cb725800781f43f16bc2882c0
+# https://github.com/FreeRDP/FreeRDP/commit/ab5905cbada0d34cf85ffd32881cacaf8275744f
+# https://github.com/FreeRDP/FreeRDP/commit/1db16b4b121a1221c0454f7d223096cac87bf244
+Patch:          winpr-crt-add-functions-to-test-string.patch
+Patch:          core-redirection-check-redirection-values-for-validity.patch
+Patch:          core-redirection-relax-checks.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -600,6 +632,12 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue Aug 04 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.8
+- Backport several CVE fixes (CVE-2026-64620, CVE-2026-64621, CVE-2026-64624,
+  CVE-2026-67289, CVE-2026-67299, CVE-2026-68580)
+  Resolves: RHEL-212621, RHEL-212978, RHEL-213168, RHEL-222783, RHEL-222983,
+  Resolves: RHEL-223604
+
 * Sat Jul 11 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.7
 - Add codecID checks for CACHE_BITMAP_V3_ORDER (CVE-2026-55827)
 - Fix boundary checks in gdi_Bitmap_Decompress (CVE-2026-55827)

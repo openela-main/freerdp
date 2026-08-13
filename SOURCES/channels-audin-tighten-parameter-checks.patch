@@ -1,0 +1,228 @@
+From 3b25c78c98d25b23246a5267d45f3654c2a8735d Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 15 Jul 2026 17:52:28 +0200
+Subject: [PATCH] [channels,audin] tighten parameter checks
+
+---
+ channels/audin/client/alsa/audin_alsa.c    |  4 +-
+ channels/audin/client/opensles/opensl_io.c | 43 +++++++++++++++-------
+ channels/audin/client/opensles/opensl_io.h |  5 +--
+ channels/audin/client/oss/audin_oss.c      |  3 ++
+ channels/audin/client/sndio/audin_sndio.c  |  9 +++--
+ channels/audin/client/winmm/audin_winmm.c  | 17 +++++----
+ 6 files changed, 51 insertions(+), 30 deletions(-)
+
+diff --git a/channels/audin/client/alsa/audin_alsa.c b/channels/audin/client/alsa/audin_alsa.c
+index e74097129..5b9f4ea5b 100644
+--- a/channels/audin/client/alsa/audin_alsa.c
++++ b/channels/audin/client/alsa/audin_alsa.c
+@@ -138,8 +138,8 @@ static DWORD WINAPI audin_alsa_thread_func(LPVOID arg)
+ 		goto out;
+ 	}
+ 
+-	buffer =
+-	    (BYTE*)calloc(alsa->frames_per_packet + alsa->aformat.nBlockAlign, alsa->bytes_per_frame);
++	buffer = (BYTE*)calloc(1ull * alsa->frames_per_packet + alsa->aformat.nBlockAlign,
++	                       alsa->bytes_per_frame);
+ 
+ 	if (!buffer)
+ 	{
+diff --git a/channels/audin/client/opensles/opensl_io.c b/channels/audin/client/opensles/opensl_io.c
+index 39b3dc848..2f27bd60f 100644
+--- a/channels/audin/client/opensles/opensl_io.c
++++ b/channels/audin/client/opensles/opensl_io.c
+@@ -54,10 +54,10 @@ struct opensl_stream
+ 	SLRecordItf recorderRecord;
+ 	SLAndroidSimpleBufferQueueItf recorderBufferQueue;
+ 
+-	unsigned int inchannels;
+-	unsigned int sr;
+-	unsigned int buffersize;
+-	unsigned int bits_per_sample;
++	size_t inchannels;
++	size_t sr;
++	size_t buffersize;
++	size_t bits_per_sample;
+ 
+ 	queue_element* prep;
+ 	queue_element* next;
+@@ -109,8 +109,8 @@ engine_end:
+ static SLresult openSLRecOpen(OPENSL_STREAM* p)
+ {
+ 	SLresult result;
+-	SLuint32 sr = p->sr;
+-	SLuint32 channels = p->inchannels;
++	SLuint32 sr = WINPR_ASSERTING_INT_CAST(SLuint32, p->sr);
++	SLuint32 channels = WINPR_ASSERTING_INT_CAST(SLuint32, p->inchannels);
+ 	WINPR_ASSERT(!p->recorderObject);
+ 
+ 	if (channels)
+@@ -201,7 +201,10 @@ static SLresult openSLRecOpen(OPENSL_STREAM* p)
+ 			format_pcm.containerSize = 8;
+ 		}
+ 		else
+-			WINPR_ASSERT(0);
++		{
++			WLog_ERR(TAG, "bits_per_sample=%" PRIuz, p->bits_per_sample);
++			return -1;
++		}
+ 
+ 		SLDataSink audioSnk = { &loc_bq, &format_pcm };
+ 		// create audio recorder
+@@ -306,24 +309,31 @@ static void opensles_queue_element_free(void* obj)
+ }
+ 
+ // open the android audio device for input
+-OPENSL_STREAM* android_OpenRecDevice(void* context, opensl_receive_t receive, int sr,
+-                                     int inchannels, int bufferframes, int bits_per_sample)
++OPENSL_STREAM* android_OpenRecDevice(void* context, opensl_receive_t receive, size_t sr,
++                                     size_t inchannels, size_t bufferframes, size_t bits_per_sample)
+ {
+-	OPENSL_STREAM* p;
+-
+ 	if (!context || !receive)
+ 		return NULL;
+ 
+-	p = (OPENSL_STREAM*)calloc(1, sizeof(OPENSL_STREAM));
++	OPENSL_STREAM* p = (OPENSL_STREAM*)calloc(1, sizeof(OPENSL_STREAM));
+ 
+ 	if (!p)
+ 		return NULL;
+ 
+ 	p->context = context;
+ 	p->receive = receive;
++	if (inchannels > INT32_MAX)
++		goto fail;
+ 	p->inchannels = inchannels;
++
++	if (sr > INT32_MAX)
++		goto fail;
+ 	p->sr = sr;
++
++	if (bufferframes > SIZE_MAX / 2)
++		goto fail;
+ 	p->buffersize = bufferframes;
++
+ 	p->bits_per_sample = bits_per_sample;
+ 
+ 	if ((p->bits_per_sample != 8) && (p->bits_per_sample != 16))
+@@ -335,9 +345,14 @@ OPENSL_STREAM* android_OpenRecDevice(void* context, opensl_receive_t receive, in
+ 	if (openSLRecOpen(p) != SL_RESULT_SUCCESS)
+ 		goto fail;
+ 
++	const size_t bytesPerSample = p->bits_per_sample / 8ull;
++	if (p->buffersize >= SIZE_MAX / bytesPerSample)
++		goto fail;
++
++	const size_t queuesize = p->buffersize * bytesPerSample;
+ 	/* Create receive buffers, prepare them and start recording */
+-	p->prep = opensles_queue_element_new(p->buffersize * p->bits_per_sample / 8);
+-	p->next = opensles_queue_element_new(p->buffersize * p->bits_per_sample / 8);
++	p->prep = opensles_queue_element_new(queuesize);
++	p->next = opensles_queue_element_new(queuesize);
+ 
+ 	if (!p->prep || !p->next)
+ 		goto fail;
+diff --git a/channels/audin/client/opensles/opensl_io.h b/channels/audin/client/opensles/opensl_io.h
+index e99522cfe..07255de5c 100644
+--- a/channels/audin/client/opensles/opensl_io.h
++++ b/channels/audin/client/opensles/opensl_io.h
+@@ -51,13 +51,12 @@ extern "C"
+ 	size in frames. Returns a handle to the OpenSL stream
+ 	*/
+ 	FREERDP_LOCAL OPENSL_STREAM* android_OpenRecDevice(void* context, opensl_receive_t receive,
+-	                                                   int sr, int inchannels, int bufferframes,
+-	                                                   int bits_per_sample);
++	                                                   size_t sr, size_t inchannels,
++	                                                   size_t bufferframes, size_t bits_per_sample);
+ 	/*
+ 	Close the audio device
+ 	*/
+ 	FREERDP_LOCAL void android_CloseRecDevice(OPENSL_STREAM* p);
+-
+ #ifdef __cplusplus
+ };
+ #endif
+diff --git a/channels/audin/client/oss/audin_oss.c b/channels/audin/client/oss/audin_oss.c
+index 8b6ad6cc5..c76326d9c 100644
+--- a/channels/audin/client/oss/audin_oss.c
++++ b/channels/audin/client/oss/audin_oss.c
+@@ -229,6 +229,9 @@ static DWORD WINAPI audin_oss_thread_func(LPVOID arg)
+ 
+ 	buffer_size =
+ 	    (1ull * oss->FramesPerPacket * oss->format.nChannels * (oss->format.wBitsPerSample / 8ull));
++	if (buffer_size > INT32_MAX)
++		goto err_out;
++
+ 	buffer = (BYTE*)calloc((buffer_size + sizeof(void*)), sizeof(BYTE));
+ 
+ 	if (NULL == buffer)
+diff --git a/channels/audin/client/sndio/audin_sndio.c b/channels/audin/client/sndio/audin_sndio.c
+index af5426e72..655145db0 100644
+--- a/channels/audin/client/sndio/audin_sndio.c
++++ b/channels/audin/client/sndio/audin_sndio.c
+@@ -82,7 +82,7 @@ static void* audin_sndio_thread_func(void* arg)
+ 	struct sio_hdl* hdl;
+ 	struct sio_par par;
+ 	BYTE* buffer = NULL;
+-	size_t n, nbytes;
++	size_t n;
+ 	AudinSndioDevice* sndio = (AudinSndioDevice*)arg;
+ 	UINT error = 0;
+ 	DWORD status;
+@@ -125,8 +125,11 @@ static void* audin_sndio_thread_func(void* arg)
+ 		goto err_out;
+ 	}
+ 
+-	nbytes =
+-	    (sndio->FramesPerPacket * sndio->format.nChannels * (sndio->format.wBitsPerSample / 8));
++	const size_t nbytes = (1ull * sndio->FramesPerPacket * sndio->format.nChannels *
++	                       (sndio->format.wBitsPerSample / 8));
++	if (nbytes > INT32_MAX)
++		goto err_out;
++
+ 	buffer = (BYTE*)calloc((nbytes + sizeof(void*)), sizeof(BYTE));
+ 
+ 	if (buffer == NULL)
+diff --git a/channels/audin/client/winmm/audin_winmm.c b/channels/audin/client/winmm/audin_winmm.c
+index daa59254f..d6cceaf18 100644
+--- a/channels/audin/client/winmm/audin_winmm.c
++++ b/channels/audin/client/winmm/audin_winmm.c
+@@ -169,8 +169,6 @@ static BOOL test_format_supported(const PWAVEFORMATEX pwfx)
+ static DWORD WINAPI audin_winmm_thread_func(LPVOID arg)
+ {
+ 	AudinWinmmDevice* winmm = (AudinWinmmDevice*)arg;
+-	char* buffer = NULL;
+-	int size = 0;
+ 	WAVEHDR waveHdr[4] = { 0 };
+ 	DWORD status = 0;
+ 	MMRESULT rc = 0;
+@@ -184,19 +182,22 @@ static DWORD WINAPI audin_winmm_thread_func(LPVOID arg)
+ 			return ERROR_INTERNAL_ERROR;
+ 	}
+ 
+-	size =
+-	    (winmm->pwfx_cur->wBitsPerSample * winmm->pwfx_cur->nChannels * winmm->frames_per_packet +
+-	     7) /
+-	    8;
++	const size_t framesize =
++	    1ull * winmm->pwfx_cur->wBitsPerSample / 8ull * winmm->pwfx_cur->nChannels;
++	if (framesize > UINT32_MAX)
++		return ERROR_INTERNAL_ERROR;
+ 
++	const size_t size = framesize * winmm->frames_per_packet;
++	if (size > UINT32_MAX)
++		return ERROR_INTERNAL_ERROR;
+ 	for (int i = 0; i < 4; i++)
+ 	{
+-		buffer = (char*)malloc(size);
++		char* buffer = (char*)calloc(framesize, winmm->frames_per_packet);
+ 
+ 		if (!buffer)
+ 			return CHANNEL_RC_NO_MEMORY;
+ 
+-		waveHdr[i].dwBufferLength = size;
++		waveHdr[i].dwBufferLength = WINPR_ASSERTING_INT_CAST(DWORD, size);
+ 		waveHdr[i].dwFlags = 0;
+ 		waveHdr[i].lpData = buffer;
+ 		rc = waveInPrepareHeader(winmm->hWaveIn, &waveHdr[i], sizeof(waveHdr[i]));

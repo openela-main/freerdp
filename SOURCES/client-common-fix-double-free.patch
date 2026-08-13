@@ -1,0 +1,21 @@
+From 005c5abacbb569f0f66deee710e1f1a87794f368 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 1 Jul 2026 23:03:29 +0200
+Subject: [PATCH] [client,common] fix double free
+
+---
+ client/common/file.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/client/common/file.c b/client/common/file.c
+index 35e8643f2..606aab0f7 100644
+--- a/client/common/file.c
++++ b/client/common/file.c
+@@ -2457,7 +2457,6 @@ BOOL freerdp_client_populate_settings_from_rdp_file(const rdpFile* file, rdpSett
+ 			if ((val >= UINT32_MAX) && (errno != 0))
+ 			{
+ 				CommandLineParserFree(ptr);
+-				free(list);
+ 				return FALSE;
+ 			}
+ 			list[x] = (UINT32)val;

@@ -1,0 +1,201 @@
+From 81747fa9100fdb3fde2aae71cda2a79c82f6e363 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 9 Jul 2026 08:34:24 +0200
+Subject: [PATCH] [core,redirection] check redirection values for validity
+
+Add some basic validity checks for data provided by server.
+---
+ libfreerdp/core/gateway/arm.c | 11 +++++++++++
+ libfreerdp/core/redirection.c | 25 ++++++++++++++++++++-----
+ libfreerdp/core/utils.c       | 26 ++++++++++++++++++++++++++
+ libfreerdp/core/utils.h       |  2 ++
+ 4 files changed, 59 insertions(+), 5 deletions(-)
+
+diff --git a/libfreerdp/core/gateway/arm.c b/libfreerdp/core/gateway/arm.c
+index 4433f6ac9..0e82cf775 100644
+--- a/libfreerdp/core/gateway/arm.c
++++ b/libfreerdp/core/gateway/arm.c
+@@ -26,6 +26,7 @@
+ #include <winpr/assert.h>
+ 
+ #include <winpr/crt.h>
++#include <winpr/string.h>
+ #include <winpr/synch.h>
+ #include <winpr/print.h>
+ #include <winpr/stream.h>
+@@ -654,6 +655,10 @@ static BOOL arm_parse_ipv6(rdpSettings* settings, WINPR_JSON* ipv6, size_t* pAdd
+ 		const char* addr = WINPR_JSON_GetStringValue(adressN);
+ 		if (utils_str_is_empty(addr))
+ 			continue;
++
++		if (!winpr_str_is_valid_url(addr))
++			return FALSE;
++
+ 		if (!freerdp_settings_set_pointer_array(settings, FreeRDP_TargetNetAddresses,
+ 		                                        (*pAddressIdx)++, addr))
+ 			return FALSE;
+@@ -684,6 +689,9 @@ static BOOL arm_parse_ipv4(rdpSettings* settings, WINPR_JSON* ipv4, size_t* pAdd
+ 			const char* publicIp = WINPR_JSON_GetStringValue(publicIpNode);
+ 			if (!utils_str_is_empty(publicIp))
+ 			{
++				if (!utils_is_valid_ip(publicIp))
++					return FALSE;
++
+ 				if (!freerdp_settings_set_pointer_array(settings, FreeRDP_TargetNetAddresses,
+ 				                                        (*pAddressIdx)++, publicIp))
+ 					return FALSE;
+@@ -696,6 +704,9 @@ static BOOL arm_parse_ipv4(rdpSettings* settings, WINPR_JSON* ipv4, size_t* pAdd
+ 			const char* privateIp = WINPR_JSON_GetStringValue(privateIpNode);
+ 			if (!utils_str_is_empty(privateIp))
+ 			{
++				if (!utils_is_valid_ip(privateIp))
++					return FALSE;
++
+ 				if (!freerdp_settings_set_pointer_array(settings, FreeRDP_TargetNetAddresses,
+ 				                                        (*pAddressIdx)++, privateIp))
+ 					return FALSE;
+diff --git a/libfreerdp/core/redirection.c b/libfreerdp/core/redirection.c
+index 286976929..6f7dcdb57 100644
+--- a/libfreerdp/core/redirection.c
++++ b/libfreerdp/core/redirection.c
+@@ -699,6 +699,8 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 	{
+ 		if (!rdp_redirection_read_unicode_string(s, &(redirection->TargetNetAddress), 80))
+ 			return STATE_RUN_FAILED;
++		if (!utils_is_valid_ip(redirection->TargetNetAddress))
++			return STATE_RUN_FAILED;
+ 	}
+ 
+ 	if (redirection->flags & LB_LOAD_BALANCE_INFO)
+@@ -712,13 +714,17 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		if (!rdp_redirection_read_data(LB_LOAD_BALANCE_INFO, s, &redirection->LoadBalanceInfoLength,
+ 		                               &redirection->LoadBalanceInfo))
+ 			return STATE_RUN_FAILED;
++		if (!winpr_str_is_valid_urlN((const char*)redirection->LoadBalanceInfo,
++		                             redirection->LoadBalanceInfoLength))
++			return STATE_RUN_FAILED;
+ 	}
+ 
+ 	if (redirection->flags & LB_USERNAME)
+ 	{
+ 		if (!rdp_redirection_read_unicode_string(s, &(redirection->Username), 512))
+ 			return STATE_RUN_FAILED;
+-
++		if (winpr_str_has_newlines(redirection->Username))
++			return STATE_RUN_FAILED;
+ 		WLog_DBG(TAG, "Username: %s", redirection->Username);
+ 	}
+ 
+@@ -726,7 +732,8 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 	{
+ 		if (!rdp_redirection_read_unicode_string(s, &(redirection->Domain), 52))
+ 			return STATE_RUN_FAILED;
+-
++		if (winpr_str_has_newlines(redirection->Domain))
++			return STATE_RUN_FAILED;
+ 		WLog_DBG(TAG, "Domain: %s", redirection->Domain);
+ 	}
+ 
+@@ -784,7 +791,8 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 	{
+ 		if (!rdp_redirection_read_unicode_string(s, &(redirection->TargetFQDN), 512))
+ 			return STATE_RUN_FAILED;
+-
++		if (!winpr_str_is_valid_url(redirection->TargetFQDN))
++			return STATE_RUN_FAILED;
+ 		WLog_DBG(TAG, "TargetFQDN: %s", redirection->TargetFQDN);
+ 	}
+ 
+@@ -792,7 +800,8 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 	{
+ 		if (!rdp_redirection_read_unicode_string(s, &(redirection->TargetNetBiosName), 32))
+ 			return STATE_RUN_FAILED;
+-
++		if (!winpr_str_is_valid_url(redirection->TargetNetBiosName))
++			return STATE_RUN_FAILED;
+ 		WLog_DBG(TAG, "TargetNetBiosName: %s", redirection->TargetNetBiosName);
+ 	}
+ 
+@@ -801,6 +810,8 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		if (!rdp_redirection_read_data(LB_CLIENT_TSV_URL, s, &redirection->TsvUrlLength,
+ 		                               &redirection->TsvUrl))
+ 			return STATE_RUN_FAILED;
++		if (!winpr_str_is_valid_urlN((const char*)redirection->TsvUrl, redirection->TsvUrlLength))
++			return STATE_RUN_FAILED;
+ 	}
+ 
+ 	if (redirection->flags & LB_REDIRECTION_GUID)
+@@ -862,7 +873,8 @@ static state_run_t rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		{
+ 			if (!rdp_redirection_read_unicode_string(s, &(redirection->TargetNetAddresses[i]), 80))
+ 				return STATE_RUN_FAILED;
+-
++			if (!utils_is_valid_ip(redirection->TargetNetAddresses[i]))
++				return STATE_RUN_FAILED;
+ 			WLog_DBG(TAG, "TargetNetAddresses[%" PRIu32 "]: %s", i,
+ 			         redirection->TargetNetAddresses[i]);
+ 		}
+@@ -890,7 +902,10 @@ state_run_t rdp_recv_enhanced_security_redirection_packet(rdpRdp* rdp, wStream*
+ 	status = rdp_recv_server_redirection_pdu(rdp, s);
+ 
+ 	if (state_run_failed(status))
++	{
++		WLog_Print(rdp->log, WLOG_ERROR, "redirection packet invalid, aborting");
+ 		return status;
++	}
+ 
+ 	if (Stream_GetRemainingLength(s) >= 1)
+ 	{
+diff --git a/libfreerdp/core/utils.c b/libfreerdp/core/utils.c
+index 0f395d893..c46c21e23 100644
+--- a/libfreerdp/core/utils.c
++++ b/libfreerdp/core/utils.c
+@@ -28,6 +28,13 @@
+ #include <freerdp/channels/cliprdr.h>
+ #include <freerdp/channels/rdpdr.h>
+ 
++#ifdef _WIN32
++#include <winsock2.h>
++#include <ws2tcpip.h>
++#else
++#include <arpa/inet.h>
++#endif
++
+ #include <freerdp/log.h>
+ #define TAG FREERDP_TAG("core.gateway.utils")
+ 
+@@ -480,3 +487,22 @@ BOOL utils_reload_channels(rdpContext* context)
+ 		return freerdp_channels_pre_connect(context->channels, context->instance) == CHANNEL_RC_OK;
+ 	return rc;
+ }
++
++static BOOL isValidIPv4(const char* ipAddress)
++{
++	struct sockaddr_in sa = { 0 };
++	int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
++	return result != 0;
++}
++
++static BOOL isValidIPv6(const char* ipAddress)
++{
++	struct sockaddr_in6 sa = { 0 };
++	int result = inet_pton(AF_INET6, ipAddress, &(sa.sin6_addr));
++	return result != 0;
++}
++
++BOOL utils_is_valid_ip(const char* ipAddress)
++{
++	return isValidIPv4(ipAddress) || isValidIPv6(ipAddress);
++}
+diff --git a/libfreerdp/core/utils.h b/libfreerdp/core/utils.h
+index a42dcad94..6b25c580c 100644
+--- a/libfreerdp/core/utils.h
++++ b/libfreerdp/core/utils.h
+@@ -61,4 +61,6 @@ char* utils_redir_flags_to_string(UINT32 flags, char* buffer, size_t size);
+ 
+ BOOL utils_reload_channels(rdpContext* context);
+ 
++FREERDP_LOCAL BOOL utils_is_valid_ip(const char* ipAddress);
++
+ #endif /* FREERDP_LIB_CORE_UTILS_H */
+

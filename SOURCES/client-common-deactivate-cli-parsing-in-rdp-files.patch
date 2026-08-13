@@ -1,0 +1,51 @@
+From c4286faee798f10cfa9897f8c482439d1e0a1a83 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 2 Jul 2026 10:21:54 +0200
+Subject: [PATCH] [client,common] deactivate cli parsing in RDP files
+
+This feature was uncodumented and might have unintended side effects.
+Deactivate it by default and (for the time being) keep an option to
+enable it at compile time.
+---
+ client/common/CMakeLists.txt | 5 +++++
+ client/common/file.c         | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/client/common/CMakeLists.txt b/client/common/CMakeLists.txt
+index fedac6c5e..dc6fde72a 100644
+--- a/client/common/CMakeLists.txt
++++ b/client/common/CMakeLists.txt
+@@ -47,6 +47,11 @@ else()
+   set(OPT_FUSE_DEFAULT OFF)
+ endif()
+ 
++option(WITH_EMBEDDED_CLI_IN_RDP_FILES "[dangrous] allow embedded cli arguments in rdp files" OFF)
++if(WITH_EMBEDDED_CLI_IN_RDP_FILES)
++  add_compile_definitions(WITH_EMBEDDED_CLI_IN_RDP_FILES)
++endif()
++
+ option(WITH_FUSE "Build clipboard with FUSE file copy support" ${OPT_FUSE_DEFAULT})
+ if(WITH_FUSE)
+   find_package(PkgConfig REQUIRED)
+diff --git a/client/common/file.c b/client/common/file.c
+index f178cad23..696775361 100644
+--- a/client/common/file.c
++++ b/client/common/file.c
+@@ -881,13 +881,17 @@ static BOOL parse_line(rdpFile* file, char* line, size_t length, rdp_file_fkt_pa
+ 
+ 	const char* beg = line;
+ #if !defined(WITHOUT_FREERDP_3x_DEPRECATED)
++#if defined(WITH_EMBEDDED_CLI_IN_RDP_FILES)
+ 	if (beg[0] == '/')
+ 	{
++		WLog_WARN(TAG, "Parsing CLI options within an RDP file is deprecated and "
++		               "will be removed in FreeRDP 4.0");
+ 		if (!freerdp_client_add_option(file, line))
+ 			return FALSE;
+ 
+ 		return TRUE; /* FreeRDP option */
+ 	}
++#endif
+ #endif
+ 
+ 	char* d1 = strchr(line, ':');
