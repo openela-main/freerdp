@@ -1,0 +1,37 @@
+From 97e9d90528690f6973398c9d7e4f8da52145f669 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Sun, 12 Jul 2026 17:37:48 +0200
+Subject: [PATCH] [channels,audin] limit FramesPerPacket
+
+---
+ channels/audin/client/audin_main.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/channels/audin/client/audin_main.c b/channels/audin/client/audin_main.c
+index 332aef9da..186e356cd 100644
+--- a/channels/audin/client/audin_main.c
++++ b/channels/audin/client/audin_main.c
+@@ -488,7 +488,6 @@ static UINT audin_process_open(AUDIN_PLUGIN* audin, AUDIN_CHANNEL_CALLBACK* cal
+ 	Stream_Read_UINT32(s, initialFormat);
+ 	WLog_Print(audin->log, WLOG_DEBUG, "FramesPerPacket=%" PRIu32 " initialFormat=%" PRIu32 "",
+ 	           FramesPerPacket, initialFormat);
+-	audin->FramesPerPacket = FramesPerPacket;
+
+ 	if (initialFormat >= callback->formats_count)
+ 	{
+@@ -496,6 +496,15 @@ static UINT audin_process_open(AUDIN_PLUGIN* audin, AUDIN_CHANNEL_CALLBACK* cal
+ 		return ERROR_INVALID_DATA;
+ 	}
+
++	/* The RDP protocol field allows UINT32_MAX, but most backend API use INT32 as input parameter
++	 * or do some math with it, so ensure that the value does not exceed reasonable limits */
++	if (FramesPerPacket >= INT32_MAX)
++	{
++		WLog_Print(audin->log, WLOG_ERROR, "invalid frames per packet %" PRIu32, FramesPerPacket);
++		return ERROR_INVALID_DATA;
++	}
++
++	audin->FramesPerPacket = FramesPerPacket;
+ 	audin->format = &callback->formats[initialFormat];
+
+ 	if (!audin_open_device(audin, callback))

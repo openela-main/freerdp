@@ -1,0 +1,65 @@
+From 20a3489c23763f94d31dcf8fd7ed880e07cbb2e8 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 2 Jul 2026 10:21:54 +0200
+Subject: [PATCH] [client,common] deactivate cli parsing in RDP files
+
+This feature was uncodumented and might have unintended side effects.
+Deactivate it by default and (for the time being) keep an option to
+enable it at compile time.
+---
+ client/common/CMakeLists.txt | 5 +++++
+ client/common/file.c         | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/client/common/CMakeLists.txt b/client/common/CMakeLists.txt
+index b465a6311..7bc7cf083 100644
+--- a/client/common/CMakeLists.txt
++++ b/client/common/CMakeLists.txt
+@@ -85,6 +85,11 @@ if (WITH_DEBUG_SYMBOLS AND MSVC AND BUILD_SHARED_LIBS)
+ 	install(FILES ${CMAKE_PDB_BINARY_DIR}/${OUTPUT_FILENAME}.pdb DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT symbols)
+ endif()
+
++option(WITH_EMBEDDED_CLI_IN_RDP_FILES "[dangrous] allow embedded cli arguments in rdp files" OFF)
++if(WITH_EMBEDDED_CLI_IN_RDP_FILES)
++  add_compile_definitions(WITH_EMBEDDED_CLI_IN_RDP_FILES)
++endif()
++
+ set_property(TARGET ${MODULE_NAME} PROPERTY FOLDER "Client/Common")
+
+ if(BUILD_TESTING)
+diff --git a/client/common/file.c b/client/common/file.c
+index b56fe6f06..bff94bad0 100644
+--- a/client/common/file.c
++++ b/client/common/file.c
+@@ -26,6 +26,7 @@
+
+ #include <winpr/file.h>
+
++
+ #include <freerdp/client/file.h>
+ #include <freerdp/client/cmdline.h>
+
+@@ -661,6 +662,7 @@ static BOOL trim_strings(rdpFile* file)
+ 		return FALSE;
+ 	if (!trim(&file->KdcProxyName))
+ 		return FALSE;
++
+ 	return TRUE;
+ }
+
+@@ -721,6 +723,7 @@ BOOL freerdp_client_parse_rdp_file_buffer_ex(rdpFile* file, const BYTE* buffer,
+ 			if (freerdp_client_parse_rdp_file_add_line(file, line, index) == -1)
+ 				goto fail;
+
++#if defined(WITH_EMBEDDED_CLI_IN_RDP_FILES)
+ 			if (beg[0] == '/')
+ 			{
+ 				if (!freerdp_client_parse_rdp_file_option(file, line, index))
+@@ -728,6 +731,7 @@ BOOL freerdp_client_parse_rdp_file_buffer_ex(rdpFile* file, const BYTE* buffer,
+
+ 				goto next_line; /* FreeRDP option */
+ 			}
++#endif
+
+ 			d1 = strchr(line, ':');
+
