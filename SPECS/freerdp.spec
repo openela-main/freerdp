@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        10%{?dist}
+Release:        11%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -194,6 +194,26 @@ Patch45:        client-x11-fix-deadlock-on-output-expose.patch
 # CVE-2026-45700
 # https://github.com/FreeRDP/FreeRDP/commit/4a065a941ae134a0433d1497c03b3c3eb91b9f85
 Patch46:        codec-planar-fix-bounds-checks.patch
+
+# CVE-2026-64624
+# https://github.com/FreeRDP/FreeRDP/commit/22c5deea52404f51a13276b3abda44e1e60704cf
+Patch47:        client-common-deactivate-cli-parsing-in-rdp-files.patch
+
+# CVE-2026-67289
+# https://github.com/FreeRDP/FreeRDP/commit/f163b2d2080d922cb725800781f43f16bc2882c0
+# https://github.com/FreeRDP/FreeRDP/commit/ab5905cbada0d34cf85ffd32881cacaf8275744f
+# https://github.com/FreeRDP/FreeRDP/commit/1db16b4b121a1221c0454f7d223096cac87bf244
+Patch48:        winpr-crt-add-functions-to-test-string.patch
+Patch49:        core-redirection-check-redirection-values-for-validity.patch
+Patch50:        core-redirection-relax-checks.patch
+
+# CVE-2026-68580
+# https://github.com/FreeRDP/FreeRDP/commit/3bf07d4470bbe42faf4ef8197c8fe1b6b759b00f
+Patch51:        channels-audin-limit-FramesPerPacket.patch
+
+# CVE-2026-67299
+# https://github.com/FreeRDP/FreeRDP/commit/172edbddd24f33033b9eafae6ea1fff0641a24f4
+Patch52:        core-message-fix-update_message_WindowIcon.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -452,6 +472,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Tue Aug 04 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-11
+- Backport several CVE fixes (CVE-2026-64624, CVE-2026-67289, CVE-2026-67299,
+  CVE-2026-68580)
+  Resolves: RHEL-213173, RHEL-222796, RHEL-222972, RHEL-223606
+
 * Wed Jun 24 2026 RHEL Packaging Agent <rhel-se-jotnar@redhat.com> - 2:2.11.7-10
 - Fix incorrect bounds checks in planar codec (CVE-2026-45700)
   Resolves: RHEL-186983

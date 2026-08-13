@@ -1,0 +1,34 @@
+From b3cff65a1adbbdeda478f035218eeadc72ca0032 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 14 Jul 2026 12:30:27 +0200
+Subject: [PATCH] [core,redirection] relax checks
+
+* TsvUrl is opaque, do not assume any format
+* LoadBalanceInfo is opaque, do not assume any format
+---
+ libfreerdp/core/redirection.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/libfreerdp/core/redirection.c b/libfreerdp/core/redirection.c
+index b4b222eb2..773496603 100644
+--- a/libfreerdp/core/redirection.c
++++ b/libfreerdp/core/redirection.c
+@@ -421,9 +421,6 @@ static int rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		if (!rdp_redirection_read_data(LB_LOAD_BALANCE_INFO, s, &redirection->LoadBalanceInfoLength,
+ 		                               &redirection->LoadBalanceInfo))
+ 			return -1;
+-		if (!winpr_str_is_valid_urlN((const char*)redirection->LoadBalanceInfo,
+-		                             redirection->LoadBalanceInfoLength))
+-			return -1;
+ 	}
+
+ 	if (redirection->flags & LB_USERNAME)
+@@ -510,8 +507,6 @@ static int rdp_recv_server_redirection_pdu(rdpRdp* rdp, wStream* s)
+ 		if (!rdp_redirection_read_data(LB_CLIENT_TSV_URL, s, &redirection->TsvUrlLength,
+ 		                               &redirection->TsvUrl))
+ 			return -1;
+-		if (!winpr_str_is_valid_urlN((const char*)redirection->TsvUrl, redirection->TsvUrlLength))
+-			return -1;
+ 	}
+
+ 	if (redirection->flags & LB_REDIRECTION_GUID)
