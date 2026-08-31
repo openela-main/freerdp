@@ -1,0 +1,133 @@
+From ae5a0b37ce4db87ab6c7621af2ffad25dd18a41a Mon Sep 17 00:00:00 2001
+From: RHEL Packaging Agent <redhat-ymir-agent@redhat.com>
+Date: Fri, 21 Aug 2026 10:57:44 +0000
+Subject: [PATCH] [codec,planar] fix input checks
+
+---
+ libfreerdp/codec/planar.c | 57 ++++++++++++++++++++++++---------------
+ 1 file changed, 35 insertions(+), 22 deletions(-)
+
+diff --git a/libfreerdp/codec/planar.c b/libfreerdp/codec/planar.c
+index 0c4129fb1..22db68b5e 100644
+--- a/libfreerdp/codec/planar.c
++++ b/libfreerdp/codec/planar.c
+@@ -230,6 +230,20 @@ static INLINE INT32 planar_skip_plane_rle(const BYTE* WINPR_RESTRICT pSrcData, U
+ 	return (INT32)used;
+ }
+ 
++static INLINE bool check_source_available(const BYTE* buffer, size_t length, const BYTE* cur,
++                                          size_t required)
++{
++	WINPR_ASSERT(cur >= buffer);
++	const size_t len = (size_t)(cur - buffer);
++
++	if ((SIZE_MAX - len < required) || (len + required > length))
++	{
++		WLog_ERR(TAG, "error reading input buffer");
++		return false;
++	}
++	return true;
++}
++
+ static INLINE INT32 planar_decompress_plane_rle_only(const BYTE* WINPR_RESTRICT pSrcData,
+                                                      UINT32 SrcSize, BYTE* WINPR_RESTRICT pDstData,
+                                                      UINT32 nWidth, UINT32 nHeight)
+@@ -256,14 +270,10 @@ static INLINE INT32 planar_decompress_plane_rle_only(const BYTE* WINPR_RESTRICT
+ 
+ 		for (INT32 x = 0; x < (INT32)nWidth;)
+ 		{
+-			controlByte = *srcp;
+-			srcp++;
+-
+-			if ((srcp - pSrcData) > SrcSize * 1ll)
+-			{
+-				WLog_ERR(TAG, "error reading input buffer");
++			if (!check_source_available(pSrcData, SrcSize, srcp, 1))
+ 				return -1;
+-			}
++
++			controlByte = *srcp++;
+ 
+ 			nRunLength = PLANAR_CONTROL_BYTE_RUN_LENGTH(controlByte);
+ 			cRawBytes = PLANAR_CONTROL_BYTE_RAW_BYTES(controlByte);
+@@ -287,11 +297,12 @@ static INLINE INT32 planar_decompress_plane_rle_only(const BYTE* WINPR_RESTRICT
+ 
+ 			if (!previousScanline)
+ 			{
++				if (!check_source_available(pSrcData, SrcSize, srcp, cRawBytes))
++					return -1;
+ 				/* first scanline, absolute values */
+ 				while (cRawBytes > 0)
+ 				{
+-					pixel = *srcp;
+-					srcp++;
++					pixel = *srcp++;
+ 					*dstp = pixel;
+ 					dstp++;
+ 					x++;
+@@ -308,11 +319,13 @@ static INLINE INT32 planar_decompress_plane_rle_only(const BYTE* WINPR_RESTRICT
+ 			}
+ 			else
+ 			{
++				if (!check_source_available(pSrcData, SrcSize, srcp, cRawBytes))
++					return -1;
++
+ 				/* delta values relative to previous scanline */
+ 				while (cRawBytes > 0)
+ 				{
+-					deltaValue = *srcp;
+-					srcp++;
++					deltaValue = *srcp++;
+ 
+ 					if (deltaValue & 1)
+ 					{
+@@ -394,14 +407,10 @@ static INLINE INT32 planar_decompress_plane_rle(const BYTE* WINPR_RESTRICT pSrcD
+ 
+ 		for (INT32 x = 0; x < (INT32)nWidth;)
+ 		{
+-			controlByte = *srcp;
+-			srcp++;
+-
+-			if ((srcp - pSrcData) > SrcSize * 1ll)
+-			{
+-				WLog_ERR(TAG, "error reading input buffer");
++			if (!check_source_available(pSrcData, SrcSize, srcp, 1))
+ 				return -1;
+-			}
++
++			controlByte = *srcp++;
+ 
+ 			nRunLength = PLANAR_CONTROL_BYTE_RUN_LENGTH(controlByte);
+ 			cRawBytes = PLANAR_CONTROL_BYTE_RAW_BYTES(controlByte);
+@@ -425,11 +434,13 @@ static INLINE INT32 planar_decompress_plane_rle(const BYTE* WINPR_RESTRICT pSrcD
+ 
+ 			if (!previousScanline)
+ 			{
++				if (!check_source_available(pSrcData, SrcSize, srcp, cRawBytes))
++					return -1;
++
+ 				/* first scanline, absolute values */
+ 				while (cRawBytes > 0)
+ 				{
+-					pixel = *srcp;
+-					srcp++;
++					pixel = *srcp++;
+ 					*dstp = pixel;
+ 					dstp += 4;
+ 					x++;
+@@ -446,11 +457,13 @@ static INLINE INT32 planar_decompress_plane_rle(const BYTE* WINPR_RESTRICT pSrcD
+ 			}
+ 			else
+ 			{
++				if (!check_source_available(pSrcData, SrcSize, srcp, cRawBytes))
++					return -1;
++
+ 				/* delta values relative to previous scanline */
+ 				while (cRawBytes > 0)
+ 				{
+-					deltaValue = *srcp;
+-					srcp++;
++					deltaValue = *srcp++;
+ 
+ 					if (deltaValue & 1)
+ 					{

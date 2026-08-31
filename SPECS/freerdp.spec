@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.8
+Release:        12%{?dist}.10
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -308,6 +308,58 @@ Patch:          core-message-fix-update_message_WindowIcon.patch
 Patch:          winpr-crt-add-functions-to-test-string.patch
 Patch:          core-redirection-check-redirection-values-for-validity.patch
 Patch:          core-redirection-relax-checks.patch
+
+# CVE-2026-67298
+# https://github.com/FreeRDP/FreeRDP/commit/b0deb3293b6d3d7506c29336ba14e3a2421c6210
+Patch:          channels-rail-ensure-valid-packet-when-reading-header.patch
+
+# CVE-2026-73242
+# https://github.com/FreeRDP/FreeRDP/commit/0adf5e30d01be84e190a359a7bdd37bc51d740cc
+Patch:          winpr-sspi-tighten-bounds-checks-for-kerberos.patch
+
+# CVE-2026-55194
+# https://github.com/FreeRDP/FreeRDP/commit/9f2da52c2341cc14a96ad12e69c5b83d0bcd8b5a
+Patch:          core-gateway-ensure-buffer-size-for-current-write.patch
+
+# CVE-2026-63633
+# https://github.com/FreeRDP/FreeRDP/commit/0ed1f95d36913581cf31124f94eb5843d4263eae
+Patch:          codec-dsp-fix-opus-buffer-checks.patch
+
+# CVE-2026-63652
+# https://github.com/FreeRDP/FreeRDP/commit/caf653c0ba1c75ec8f298d1baa59770102a5d14c
+Patch:          channels-rdpsnd-fix-free-of-RdpsndServerContext-clie.patch
+
+# CVE-2026-67288
+# https://github.com/FreeRDP/FreeRDP/commit/efe40e15d508f9754b7a3af851de4d2a0b1128d8
+Patch:          scard-handle-nullptr-for-LookupName.patch
+
+# CVE-2026-67291
+# https://github.com/FreeRDP/FreeRDP/commit/649efd9326b3c5b236d39467b6e7de92d70efb59
+Patch:          cache-glyph-tighten-bounds-checks.patch
+
+# CVE-2026-67296
+# https://github.com/FreeRDP/FreeRDP/commit/21417d6aca4a211b11418553a6884b2d4723da9b
+Patch:          channels-rdpei-add-RDPINPUT_MAX_PDU_LENGTH.patch
+
+# CVE-2026-67297
+# https://github.com/FreeRDP/FreeRDP/commit/494721493799ec62bb3f8a02d813c66b3f7a298c
+Patch:          core-gateway-http-add-chunked-response-size-check.patch
+
+# CVE-2026-67301
+# https://github.com/FreeRDP/FreeRDP/commit/d0bf57c721b28c50d698cd5ffebea46fe86f6507
+Patch:          core-message-fix-PolygonSC-and-PolygonCB-async-updates.patch
+
+# CVE-2026-67304
+# https://github.com/FreeRDP/FreeRDP/commit/39279e0c891cba1aa4a3bd2e6339e91d15329a99
+Patch:          utils-smartcard-update-struct-counts-after-allocation.patch
+
+# CVE-2026-69159
+# https://github.com/FreeRDP/FreeRDP/commit/75a1ec61d444179ea64a4ec0835214cb9c4f7c18
+Patch:          codec-planar-fix-input-checks.patch
+
+# CVE-2026-73241
+# https://github.com/FreeRDP/FreeRDP/commit/b05a9510787c83c87ffc5fa8d7cc9f06ed971695
+Patch:          core-rdstls-tighten-state-and-bounds-checks.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -632,6 +684,18 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue Aug 25 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.10
+- Backport several CVE fixes (CVE-2026-55194, CVE-2026-63633, CVE-2026-63652,
+  CVE-2026-67288, CVE-2026-67291, CVE-2026-67296, CVE-2026-67297,
+  CVE-2026-67301, CVE-2026-67304, CVE-2026-69159, CVE-2026-73241)
+  Resolves: RHEL-245652, RHEL-245635, RHEL-245599, RHEL-245539, RHEL-238534
+  Resolves: RHEL-236056, RHEL-227734, RHEL-225225, RHEL-225097, RHEL-224250
+  Resolves: RHEL-224185
+
+* Mon Aug 17 2026 RHEL Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.9
+- Backport several CVE fixes (CVE-2026-67298, CVE-2026-73242)
+  Resolves: RHEL-224050, RHEL-238931
+
 * Tue Aug 04 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.8
 - Backport several CVE fixes (CVE-2026-64620, CVE-2026-64621, CVE-2026-64624,
   CVE-2026-67289, CVE-2026-67299, CVE-2026-68580)

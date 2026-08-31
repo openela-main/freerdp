@@ -1,0 +1,22 @@
+From 27012ae79b7d2850aec8f118380f156b20284681 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 1 Jul 2026 22:02:25 +0200
+Subject: [PATCH] [codec,dsp] fix opus buffer checks
+
+---
+ libfreerdp/codec/dsp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/dsp.c b/libfreerdp/codec/dsp.c
+index b67207465..4e601b98a 100644
+--- a/libfreerdp/codec/dsp.c
++++ b/libfreerdp/codec/dsp.c
+@@ -668,7 +668,7 @@ static BOOL freerdp_dsp_decode_opus(FREERDP_DSP_CONTEXT* WINPR_RESTRICT context,
+ 
+ 	/* Max packet duration is 120ms (5760 at 48KHz) */
+ 	max_size = OPUS_MAX_FRAMES * context->common.format.nChannels * sizeof(int16_t);
+-	if (!Stream_EnsureRemainingCapacity(context->common.buffer, max_size))
++	if (!Stream_EnsureRemainingCapacity(out, max_size))
+ 		return FALSE;
+ 
+ 	frames = opus_decode(context->opus_decoder, src, size, Stream_Pointer(out), OPUS_MAX_FRAMES, 0);

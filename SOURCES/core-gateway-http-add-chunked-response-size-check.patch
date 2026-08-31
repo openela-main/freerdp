@@ -1,0 +1,22 @@
+From a7518d0e9b23de63bf07ac554a8abe06238759d4 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 7 Jul 2026 19:37:01 +0200
+Subject: [PATCH] [gateway,http] enforce RESPONSE_SIZE_LIMIT for chunked data
+
+---
+ libfreerdp/core/gateway/http.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libfreerdp/core/gateway/http.c b/libfreerdp/core/gateway/http.c
+index 729ee6b71..3e6887a43 100644
+--- a/libfreerdp/core/gateway/http.c
++++ b/libfreerdp/core/gateway/http.c
+@@ -1356,6 +1356,8 @@ static BOOL http_response_recv_body(rdpTls* tls, HttpResponse* response, BOOL re
+ 				Stream_Seek(response->data, (size_t)status);
+ 				full_len += status;
+ 			}
++			if (Stream_GetPosition(response->data) > RESPONSE_SIZE_LIMIT)
++				goto out_error;
+ 		} while (ctx.state != ChunkStateEnd);
+ 		response->BodyLength = full_len;
+ 		if (response->BodyLength > 0)

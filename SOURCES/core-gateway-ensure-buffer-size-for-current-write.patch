@@ -1,0 +1,49 @@
+From 860aec92ae4338a17bb1576e5f573c212e950692 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 11 Jun 2026 08:22:26 +0200
+Subject: [PATCH] [core,gateway] ensure buffer size for current write
+
+---
+ libfreerdp/core/gateway/rpc_client.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/libfreerdp/core/gateway/rpc_client.c b/libfreerdp/core/gateway/rpc_client.c
+index eede64677..6177f6c8f 100644
+--- a/libfreerdp/core/gateway/rpc_client.c
++++ b/libfreerdp/core/gateway/rpc_client.c
+@@ -365,7 +365,7 @@ static int rpc_client_recv_pdu(rdpRpc* rpc, RPC_PDU* pdu)
+ static int rpc_client_recv_fragment(rdpRpc* rpc, wStream* fragment)
+ {
+ 	int rc = -1;
+-	RPC_PDU* pdu = NULL;
++
+ 	size_t StubOffset = 0;
+ 	size_t StubLength = 0;
+ 	RpcClientCall* call = NULL;
+@@ -375,7 +375,7 @@ static int rpc_client_recv_fragment(rdpRpc* rpc, wStream* fragment)
+ 	WINPR_ASSERT(rpc->client);
+ 	WINPR_ASSERT(fragment);
+ 
+-	pdu = rpc->client->pdu;
++	RPC_PDU* pdu = rpc->client->pdu;
+ 	WINPR_ASSERT(pdu);
+ 
+ 	Stream_SealLength(fragment);
+@@ -457,13 +457,15 @@ static int rpc_client_recv_fragment(rdpRpc* rpc, wStream* fragment)
+ 		{
+ 			const rpcconn_response_hdr_t* response =
+ 			    (const rpcconn_response_hdr_t*)&header.response;
+-			if (!Stream_EnsureCapacity(pdu->s, response->alloc_hint))
++			if (!Stream_EnsureRemainingCapacity(pdu->s, StubLength))
+ 				goto fail;
+ 
+ 			if (Stream_Length(fragment) < StubOffset + StubLength)
+ 				goto fail;
+ 
+-			Stream_SetPosition(fragment, StubOffset);
++			if (!Stream_SetPosition(fragment, StubOffset))
++				goto fail;
++
+ 			Stream_Write(pdu->s, Stream_ConstPointer(fragment), StubLength);
+ 			rpc->StubFragCount++;
+ 

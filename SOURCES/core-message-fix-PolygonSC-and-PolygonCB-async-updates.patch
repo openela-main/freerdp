@@ -1,0 +1,69 @@
+From 2d602b87d46ca8d7b89197e1218b3aa241d25497 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 7 Jul 2026 12:12:36 +0200
+Subject: [PATCH] [core,message] fix PolygonSC and PolygonCB async updates
+
+---
+ libfreerdp/core/message.c | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/libfreerdp/core/message.c b/libfreerdp/core/message.c
+index a3f376026..ddab7f4ad 100644
+--- a/libfreerdp/core/message.c
++++ b/libfreerdp/core/message.c
+@@ -725,16 +725,19 @@ static BOOL update_message_PolygonSC(rdpContext* context, const POLYGON_SC_ORDER
+ 	if (!wParam)
+ 		return FALSE;
+ 
+-	CopyMemory(wParam, polygonSC, sizeof(POLYGON_SC_ORDER));
+-	wParam->points = (DELTA_POINT*)calloc(wParam->numPoints, sizeof(DELTA_POINT));
+-
+-	if (!wParam->points)
++	*wParam = *polygonSC;
++	if (polygonSC->numPoints > 0)
+ 	{
+-		free(wParam);
+-		return FALSE;
+-	}
++		wParam->points = (DELTA_POINT*)calloc(polygonSC->numPoints, sizeof(DELTA_POINT));
+ 
+-	CopyMemory(wParam->points, polygonSC, sizeof(DELTA_POINT) * wParam->numPoints);
++		if (!wParam->points)
++		{
++			free(wParam);
++			return FALSE;
++		}
++
++		CopyMemory(wParam->points, polygonSC->points, sizeof(DELTA_POINT) * wParam->numPoints);
++	}
+ 
+ 	up = update_cast(context->update);
+ 	return MessageQueue_Post(up->queue, (void*)context, MakeMessageId(PrimaryUpdate, PolygonSC),
+@@ -754,16 +757,20 @@ static BOOL update_message_PolygonCB(rdpContext* context, POLYGON_CB_ORDER* poly
+ 	if (!wParam)
+ 		return FALSE;
+ 
+-	CopyMemory(wParam, polygonCB, sizeof(POLYGON_CB_ORDER));
+-	wParam->points = (DELTA_POINT*)calloc(wParam->numPoints, sizeof(DELTA_POINT));
+-
+-	if (!wParam->points)
++	*wParam = *polygonCB;
++	if (polygonCB->numPoints > 0)
+ 	{
+-		free(wParam);
+-		return FALSE;
++		wParam->points = (DELTA_POINT*)calloc(polygonCB->numPoints, sizeof(DELTA_POINT));
++
++		if (!wParam->points)
++		{
++			free(wParam);
++			return FALSE;
++		}
++
++		CopyMemory(wParam->points, polygonCB->points, sizeof(DELTA_POINT) * wParam->numPoints);
+ 	}
+ 
+-	CopyMemory(wParam->points, polygonCB, sizeof(DELTA_POINT) * wParam->numPoints);
+ 	wParam->brush.data = (BYTE*)wParam->brush.p8x8;
+ 
+ 	up = update_cast(context->update);

@@ -1,0 +1,56 @@
+From 13e7b36c5a65e3a36d1dc4bb809428975032ae8f Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 7 Jul 2026 19:14:35 +0200
+Subject: [PATCH] [channels,rail] ensure valid packet when reading header
+
+rail_read_pdu_header now checks validity of orderLength and availability
+of enough data.
+---
+ channels/rail/rail_common.c | 17 +++++++++++++++++
+ channels/rail/rail_common.h |  5 ++++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/channels/rail/rail_common.c b/channels/rail/rail_common.c
+index f80b6ed70..e7d08b281 100644
+--- a/channels/rail/rail_common.c
++++ b/channels/rail/rail_common.c
+@@ -110,6 +110,23 @@ UINT rail_read_pdu_header(wStream* s, UINT16* orderType, UINT16* orderLength)
+ 
+ 	Stream_Read_UINT16(s, *orderType);   /* orderType (2 bytes) */
+ 	Stream_Read_UINT16(s, *orderLength); /* orderLength (2 bytes) */
++	if (*orderLength < RAIL_PDU_HEADER_LENGTH)
++	{
++		WLog_ERR(TAG, "invalid order length %" PRIu16 " < RAIL_PDU_HEADER_LENGTH(%u)", *orderLength,
++		         RAIL_PDU_HEADER_LENGTH);
++		return ERROR_INVALID_DATA;
++	}
++
++	if (!Stream_CheckAndLogRequiredLength(TAG, s, *orderLength - RAIL_PDU_HEADER_LENGTH))
++		return ERROR_INVALID_DATA;
++
++	if (*orderLength > RAIL_PDU_MAX_LENGTH)
++	{
++		WLog_ERR(TAG, "invalid order length %" PRIu16 " < RAIL_PDU_MAX_LENGTH(%llu)", *orderLength,
++		         RAIL_PDU_MAX_LENGTH);
++		return ERROR_INVALID_DATA;
++	}
++
+ 	return CHANNEL_RC_OK;
+ }
+ 
+diff --git a/channels/rail/rail_common.h b/channels/rail/rail_common.h
+index 4233a8985..49a46159f 100644
+--- a/channels/rail/rail_common.h
++++ b/channels/rail/rail_common.h
+@@ -26,7 +26,10 @@
+ 
+ #include <freerdp/rail.h>
+ 
+-#define RAIL_PDU_HEADER_LENGTH 4
++#define RAIL_PDU_HEADER_LENGTH 4u
++
++/**< Maximum expected length of any rail PDU */
++#define RAIL_PDU_MAX_LENGTH 65535ull
+ 
+ /* Fixed length of PDUs, excluding variable lengths */
+ #define RAIL_HANDSHAKE_ORDER_LENGTH 4             /* fixed */

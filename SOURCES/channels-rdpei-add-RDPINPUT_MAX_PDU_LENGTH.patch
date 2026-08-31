@@ -1,0 +1,72 @@
+From 7970871c944d42fb440fc35ad172646fdf5acdb9 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 7 Jul 2026 19:30:16 +0200
+Subject: [PATCH] [channels,rdpei] add RDPINPUT_MAX_PDU_LENGTH
+
+Limit maximum allocation of server side RDPEI PDU
+---
+ channels/rdpei/server/rdpei_main.c | 19 +++++++++++++++++++
+ include/freerdp/channels/rdpei.h   |  4 ++++
+ 2 files changed, 23 insertions(+)
+
+diff --git a/channels/rdpei/server/rdpei_main.c b/channels/rdpei/server/rdpei_main.c
+index b9d574a4d..47dad5243 100644
+--- a/channels/rdpei/server/rdpei_main.c
++++ b/channels/rdpei/server/rdpei_main.c
+@@ -381,7 +381,13 @@ static UINT read_pen_frame(RdpeiServerContext* context, wStream* s, RDPINPUT_PEN
+ static UINT read_touch_event(RdpeiServerContext* context, wStream* s)
+ {
+ 	UINT16 frameCount = 0;
++
++	WINPR_ASSERT(context);
++	WINPR_ASSERT(context->priv);
++
+ 	RDPINPUT_TOUCH_EVENT* event = &context->priv->touchEvent;
++	WINPR_ASSERT(event);
++
+ 	RDPINPUT_TOUCH_FRAME* frame = NULL;
+ 	UINT error = CHANNEL_RC_OK;
+ 
+@@ -490,7 +496,12 @@ static UINT read_dismiss_hovering_contact(RdpeiServerContext* context, wStream*
+ UINT rdpei_server_handle_messages(RdpeiServerContext* context)
+ {
+ 	DWORD bytesReturned = 0;
++
++	WINPR_ASSERT(context);
++
+ 	RdpeiServerPrivate* priv = context->priv;
++	WINPR_ASSERT(priv);
++
+ 	wStream* s = priv->inputStream;
+ 	UINT error = CHANNEL_RC_OK;
+ 
+@@ -525,6 +536,14 @@ UINT rdpei_server_handle_messages(RdpeiServerContext* context)
+ 			WLog_ERR(TAG, "invalid pduLength %" PRIu32 "", pduLen);
+ 			return ERROR_INVALID_DATA;
+ 		}
++
++		if (pduLen > RDPINPUT_MAX_PDU_LENGTH)
++		{
++			WLog_ERR(TAG, "invalid pduLength %" PRIu32 " > RDPINPUT_MAX_PDU_LENGTH(%llu)", pduLen,
++			         RDPINPUT_MAX_PDU_LENGTH);
++			return ERROR_INVALID_DATA;
++		}
++
+ 		priv->expectedBytes = pduLen - RDPINPUT_HEADER_LENGTH;
+ 		priv->waitingHeaders = FALSE;
+ 		Stream_SetPosition(s, 0);
+diff --git a/include/freerdp/channels/rdpei.h b/include/freerdp/channels/rdpei.h
+index 0555d911f..3ec7d792a 100644
+--- a/include/freerdp/channels/rdpei.h
++++ b/include/freerdp/channels/rdpei.h
+@@ -31,6 +31,10 @@ extern "C"
+ 
+ #define RDPINPUT_HEADER_LENGTH 6
+ 
++/**< Upper bound for RDPEI PDU. Limits preallocation to roughly the largest possible
++ * PDU that a client can send. */
++#define RDPINPUT_MAX_PDU_LENGTH (UINT16_MAX * 40ull)
++
+ /** The command line name of the channel
+  *
+  *  \since version 3.0.0

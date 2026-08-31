@@ -1,0 +1,63 @@
+From f8279f58d166bf28ce382601a021c623af638876 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 9 Jul 2026 08:34:21 +0200
+Subject: [PATCH] [scard] handle nullptr for LookupName
+
+---
+ libfreerdp/emu/scard/smartcard_emulate.c  | 7 ++++---
+ winpr/libwinpr/smartcard/smartcard_pcsc.c | 9 +++++----
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/libfreerdp/emu/scard/smartcard_emulate.c b/libfreerdp/emu/scard/smartcard_emulate.c
+index 08de623bb..e955acbc5 100644
+--- a/libfreerdp/emu/scard/smartcard_emulate.c
++++ b/libfreerdp/emu/scard/smartcard_emulate.c
+@@ -46,8 +46,8 @@ static size_t g_ReaderNameWLen = 0;
+ 
+ static char* card_id_and_name_a(const UUID* CardIdentifier, LPCSTR LookupName)
+ {
+-	WINPR_ASSERT(CardIdentifier);
+-	WINPR_ASSERT(LookupName);
++	if (!CardIdentifier || !LookupName)
++		return NULL;
+ 
+ 	size_t len = strlen(LookupName) + 34;
+ 	char* id = malloc(len);
+@@ -2242,7 +2242,8 @@ LONG WINAPI Emulate_SCardReadCacheA(SmartcardEmulationContext* smartcard, SCARDC
+ 		WINPR_ASSERT(value); /* Must be valid after Emulate_SCardIsValidContext */
+ 
+ 		char* id = card_id_and_name_a(CardIdentifier, LookupName);
+-		data = HashTable_GetItemValue(value->cache, id);
++		if (id)
++			data = HashTable_GetItemValue(value->cache, id);
+ 		free(id);
+ 
+ 		if (!data)
+diff --git a/winpr/libwinpr/smartcard/smartcard_pcsc.c b/winpr/libwinpr/smartcard/smartcard_pcsc.c
+index dc44c72fe..42e830bf4 100644
+--- a/winpr/libwinpr/smartcard/smartcard_pcsc.c
++++ b/winpr/libwinpr/smartcard/smartcard_pcsc.c
+@@ -2748,8 +2748,8 @@ static LONG WINAPI PCSC_SCardDlgExtendedError(void)
+ 
+ static char* card_id_and_name_a(const UUID* CardIdentifier, LPCSTR LookupName)
+ {
+-	WINPR_ASSERT(CardIdentifier);
+-	WINPR_ASSERT(LookupName);
++	if (!CardIdentifier || !LookupName)
++		return NULL;
+ 
+ 	size_t len = strlen(LookupName) + 34;
+ 	char* id = malloc(len);
+@@ -2785,9 +2785,10 @@ static LONG WINAPI PCSC_SCardReadCacheA(SCARDCONTEXT hContext, UUID* CardIdentif
+ 		return SCARD_E_INVALID_HANDLE;
+ 
+ 	char* id = card_id_and_name_a(CardIdentifier, LookupName);
+-
+-	data = HashTable_GetItemValue(ctx->cache, id);
++	if (id)
++		data = HashTable_GetItemValue(ctx->cache, id);
+ 	free(id);
++
+ 	if (!data)
+ 	{
+ 		*DataLen = 0;
