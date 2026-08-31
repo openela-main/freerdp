@@ -1,0 +1,90 @@
+From 1983c446db9f4b39134143e4ce86f998d27817e2 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Tue, 7 Jul 2026 12:12:36 +0200
+Subject: [PATCH] [core,message] fix PolygonSC and PolygonCB async updates
+
+---
+ libfreerdp/core/message.c | 44 +++++++++++++++++++++------------------
+ 1 file changed, 24 insertions(+), 20 deletions(-)
+
+diff --git a/libfreerdp/core/message.c b/libfreerdp/core/message.c
+index 1ab0d4e4e..266c133b0 100644
+--- a/libfreerdp/core/message.c
++++ b/libfreerdp/core/message.c
+@@ -622,52 +622,56 @@ static BOOL update_message_FastGlyph(rdpContext* context, const FAST_GLYPH_ORDER
+ 
+ static BOOL update_message_PolygonSC(rdpContext* context, const POLYGON_SC_ORDER* polygonSC)
+ {
+-	POLYGON_SC_ORDER* wParam;
+-
+ 	if (!context || !context->update || !polygonSC)
+ 		return FALSE;
+ 
+-	wParam = (POLYGON_SC_ORDER*)malloc(sizeof(POLYGON_SC_ORDER));
++	POLYGON_SC_ORDER* wParam = (POLYGON_SC_ORDER*)malloc(sizeof(POLYGON_SC_ORDER));
+ 
+ 	if (!wParam)
+ 		return FALSE;
+ 
+-	CopyMemory(wParam, polygonSC, sizeof(POLYGON_SC_ORDER));
+-	wParam->points = (DELTA_POINT*)calloc(wParam->numPoints, sizeof(DELTA_POINT));
+-
+-	if (!wParam->points)
++	*wParam = *polygonSC;
++	if (polygonSC->numPoints > 0)
+ 	{
+-		free(wParam);
+-		return FALSE;
++		wParam->points = (DELTA_POINT*)calloc(polygonSC->numPoints, sizeof(DELTA_POINT));
++
++		if (!wParam->points)
++		{
++			free(wParam);
++			return FALSE;
++		}
++
++		CopyMemory(wParam->points, polygonSC->points, sizeof(DELTA_POINT) * wParam->numPoints);
+ 	}
+ 
+-	CopyMemory(wParam->points, polygonSC, sizeof(DELTA_POINT) * wParam->numPoints);
+ 	return MessageQueue_Post(context->update->queue, (void*)context,
+ 	                         MakeMessageId(PrimaryUpdate, PolygonSC), (void*)wParam, NULL);
+ }
+ 
+ static BOOL update_message_PolygonCB(rdpContext* context, POLYGON_CB_ORDER* polygonCB)
+ {
+-	POLYGON_CB_ORDER* wParam;
+-
+ 	if (!context || !context->update || !polygonCB)
+ 		return FALSE;
+ 
+-	wParam = (POLYGON_CB_ORDER*)malloc(sizeof(POLYGON_CB_ORDER));
++	POLYGON_CB_ORDER* wParam = (POLYGON_CB_ORDER*)malloc(sizeof(POLYGON_CB_ORDER));
+ 
+ 	if (!wParam)
+ 		return FALSE;
+ 
+-	CopyMemory(wParam, polygonCB, sizeof(POLYGON_CB_ORDER));
+-	wParam->points = (DELTA_POINT*)calloc(wParam->numPoints, sizeof(DELTA_POINT));
+-
+-	if (!wParam->points)
++	*wParam = *polygonCB;
++	if (polygonCB->numPoints > 0)
+ 	{
+-		free(wParam);
+-		return FALSE;
++		wParam->points = (DELTA_POINT*)calloc(polygonCB->numPoints, sizeof(DELTA_POINT));
++
++		if (!wParam->points)
++		{
++			free(wParam);
++			return FALSE;
++		}
++
++		CopyMemory(wParam->points, polygonCB->points, sizeof(DELTA_POINT) * wParam->numPoints);
+ 	}
+ 
+-	CopyMemory(wParam->points, polygonCB, sizeof(DELTA_POINT) * wParam->numPoints);
+ 	wParam->brush.data = (BYTE*)wParam->brush.p8x8;
+ 	return MessageQueue_Post(context->update->queue, (void*)context,
+ 	                         MakeMessageId(PrimaryUpdate, PolygonCB), (void*)wParam, NULL);

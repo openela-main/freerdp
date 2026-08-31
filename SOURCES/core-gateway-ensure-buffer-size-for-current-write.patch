@@ -1,0 +1,22 @@
+From 6a86f00d7c20de8eb4255f0450c4ddccb009fdef Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 11 Jun 2026 08:22:26 +0200
+Subject: [PATCH] [core,gateway] ensure buffer size for current write
+
+---
+ libfreerdp/core/gateway/rpc_client.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/gateway/rpc_client.c b/libfreerdp/core/gateway/rpc_client.c
+index 1ef0c04a6..f96ea6507 100644
+--- a/libfreerdp/core/gateway/rpc_client.c
++++ b/libfreerdp/core/gateway/rpc_client.c
+@@ -400,7 +400,7 @@ static int rpc_client_recv_fragment(rdpRpc* rpc, wStream* fragment)
+ 		{
+ 			const rpcconn_response_hdr_t* response =
+ 			    (const rpcconn_response_hdr_t*)&header.response;
+-			if (!Stream_EnsureCapacity(pdu->s, response->alloc_hint))
++			if (!Stream_EnsureRemainingCapacity(pdu->s, StubLength))
+ 				goto fail;
+ 
+ 			if (Stream_Length(fragment) < StubOffset + StubLength)

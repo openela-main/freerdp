@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        7%{?dist}.5
+Release:        7%{?dist}.6
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -217,6 +217,22 @@ Patch:          channels-audin-limit-FramesPerPacket.patch
 # CVE-2026-67299
 # https://github.com/FreeRDP/FreeRDP/commit/172edbddd24f33033b9eafae6ea1fff0641a24f4
 Patch:          core-message-fix-update_message_WindowIcon.patch
+
+# CVE-2026-55194
+# https://github.com/FreeRDP/FreeRDP/commit/9f2da52c2341cc14a96ad12e69c5b83d0bcd8b5a
+Patch:          core-gateway-ensure-buffer-size-for-current-write.patch
+
+# CVE-2026-67288
+# https://github.com/FreeRDP/FreeRDP/commit/efe40e15d508f9754b7a3af851de4d2a0b1128d8
+Patch:          scard-handle-nullptr-for-LookupName.patch
+
+# CVE-2026-67291
+# https://github.com/FreeRDP/FreeRDP/commit/649efd9326b3c5b236d39467b6e7de92d70efb59
+Patch:          cache-glyph-tighten-bounds-checks.patch
+
+# CVE-2026-67301
+# https://github.com/FreeRDP/FreeRDP/commit/d0bf57c721b28c50d698cd5ffebea46fe86f6507
+Patch:          core-message-fix-PolygonSC-and-PolygonCB-async-updates.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -475,6 +491,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Sat Aug 22 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.6
+- Backport several CVE fixes (CVE-2026-55194, CVE-2026-67288, CVE-2026-67291,
+  CVE-2026-67301)
+  Resolves: RHEL-225096, RHEL-227729, RHEL-236060, RHEL-246241
+
 * Wed Aug 05 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.5
 - Backport several CVE fixes (CVE-2026-64624, CVE-2026-67289, CVE-2026-67299,
   CVE-2026-68580)
