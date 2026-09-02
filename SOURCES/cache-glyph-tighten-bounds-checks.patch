@@ -1,0 +1,22 @@
+From 8b6476acac05c00ebdb9184c7906d149994f7577 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 9 Jul 2026 08:34:18 +0200
+Subject: [PATCH] [cache,glyph] tighten bounds checks
+
+---
+ libfreerdp/cache/glyph.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libfreerdp/cache/glyph.c b/libfreerdp/cache/glyph.c
+index 5c41f912a..67afbdfa6 100644
+--- a/libfreerdp/cache/glyph.c
++++ b/libfreerdp/cache/glyph.c
+@@ -268,6 +268,8 @@ static BOOL update_process_glyph_fragments(rdpContext* context, const BYTE* data
+ 
+ 				id = data[index++];
+ 				size = data[index++];
++				if (size > length - index)
++					return FALSE;
+ 				glyph_cache_fragment_put(glyph_cache, id, size, data);
+ 				break;
+ 

@@ -1,0 +1,40 @@
+From 0ec0b84532ff61889b797d9c86a208ad6dcbd289 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 9 Jul 2026 08:34:21 +0200
+Subject: [PATCH] [scard] handle nullptr for LookupName
+
+---
+ winpr/libwinpr/smartcard/smartcard_pcsc.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/winpr/libwinpr/smartcard/smartcard_pcsc.c b/winpr/libwinpr/smartcard/smartcard_pcsc.c
+index 4cf5095ac..dd45043af 100644
+--- a/winpr/libwinpr/smartcard/smartcard_pcsc.c
++++ b/winpr/libwinpr/smartcard/smartcard_pcsc.c
+@@ -2640,6 +2640,9 @@ static LONG WINAPI PCSC_SCardDlgExtendedError(void)
+ 
+ static char* card_id_and_name_a(const UUID* CardIdentifier, LPCSTR LookupName)
+ {
++	if (!CardIdentifier || !LookupName)
++		return NULL;
++
+ 	size_t len = strlen(LookupName) + 34;
+ 	char* id = malloc(len);
+ 	if (!id)
+@@ -2668,12 +2671,13 @@ static LONG WINAPI PCSC_SCardReadCacheA(SCARDCONTEXT hContext, UUID* CardIdentif
+                                         DWORD FreshnessCounter, LPSTR LookupName, PBYTE Data,
+                                         DWORD* DataLen)
+ {
+-	PCSC_CACHE_ITEM* data;
++	PCSC_CACHE_ITEM* data = NULL;
+ 	PCSC_SCARDCONTEXT* ctx = PCSC_GetCardContextData(hContext);
+ 	char* id = card_id_and_name_a(CardIdentifier, LookupName);
+-
+-	data = HashTable_GetItemValue(ctx->cache, id);
++	if (id)
++		data = HashTable_GetItemValue(ctx->cache, id);
+ 	free(id);
++
+ 	if (!data)
+ 	{
+ 		*DataLen = 0;
