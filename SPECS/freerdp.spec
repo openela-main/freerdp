@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        7%{?dist}.6
+Release:        7%{?dist}.7
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -233,6 +233,12 @@ Patch:          cache-glyph-tighten-bounds-checks.patch
 # CVE-2026-67301
 # https://github.com/FreeRDP/FreeRDP/commit/d0bf57c721b28c50d698cd5ffebea46fe86f6507
 Patch:          core-message-fix-PolygonSC-and-PolygonCB-async-updates.patch
+
+# CVE-2026-55193
+# https://github.com/FreeRDP/FreeRDP/commit/a863ef1cf1cdabf9019280e5658f806e73bb50e8
+# https://github.com/FreeRDP/FreeRDP/commit/e4d8b856aa4d868c30ffbfa3ff430781197a0bfc
+Patch:          core-gateway-rpc-header-max-fragment-size-checks.patch
+Patch:          core-gateway-ensure-capacity-in-rpc_channel_read.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -491,6 +497,10 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Tue Aug 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.7
+- Fix RPC gateway fragment size and capacity checks (CVE-2026-55193)
+  Resolves: RHEL-247356
+
 * Sat Aug 22 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.6
 - Backport several CVE fixes (CVE-2026-55194, CVE-2026-67288, CVE-2026-67291,
   CVE-2026-67301)
