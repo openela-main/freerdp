@@ -1,0 +1,31 @@
+From 9e8c53300c64b1b398e6c2a669b64dc056a21d62 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 11 Jun 2026 08:31:09 +0200
+Subject: [PATCH] [core,gateway] rpc header max fragment size checks
+
+---
+ libfreerdp/core/gateway/rpc_bind.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/libfreerdp/core/gateway/rpc_bind.c b/libfreerdp/core/gateway/rpc_bind.c
+index f52c53c32..68e8ae612 100644
+--- a/libfreerdp/core/gateway/rpc_bind.c
++++ b/libfreerdp/core/gateway/rpc_bind.c
+@@ -340,6 +340,17 @@ BOOL rpc_recv_bind_ack_pdu(rdpRpc* rpc, wStream* s)
+ 	WLog_DBG(TAG, header.common.ptype == PTYPE_BIND_ACK ? "Receiving BindAck PDU"
+ 	                                                    : "Receiving AlterContextResp PDU");
+ 
++	const UINT16 MAX_VALID_FRAG = 0x0FF8;
++	if ((header.bind_ack.max_xmit_frag > MAX_VALID_FRAG) ||
++	    (header.bind_ack.max_recv_frag > MAX_VALID_FRAG))
++	{
++		WLog_ERR(TAG,
++		         "bind_ack: invalid fragment size: max_xmit_frag=%" PRIu16
++		         ", max_recv_frag=%" PRIu16 ", maximum=%" PRIu16,
++		         header.bind_ack.max_xmit_frag, header.bind_ack.max_recv_frag, MAX_VALID_FRAG);
++		goto fail;
++	}
++
+ 	rpc->max_recv_frag = header.bind_ack.max_xmit_frag;
+ 	rpc->max_xmit_frag = header.bind_ack.max_recv_frag;
+ 
