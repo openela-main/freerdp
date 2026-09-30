@@ -1,0 +1,28 @@
+From 8cc061211378a621908ee7056977bc855e870c7c Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Mon, 14 Sep 2026 13:32:45 +0200
+Subject: [PATCH] [core,rdstls] Fix version validation macro
+
+Backport of commit 8cc061211378a621908ee7056977bc855e870c7c.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+---
+ libfreerdp/core/rdstls.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/rdstls.c b/libfreerdp/core/rdstls.c
+index 1dd84de01e..fff802a81c 100644
+--- a/libfreerdp/core/rdstls.c
++++ b/libfreerdp/core/rdstls.c
+@@ -509,7 +509,7 @@ static BOOL rdstls_are_some_versions_supported_(wLog* log, uint16_t version, BOO
+ 	return TRUE;
+ }
+ 
+-#define rdstls_is_version_supported(rdstls, versions) \
++#define rdstls_is_version_supported(rdstls, version) \
+ 	rdstls_is_version_supported_((rdstls), (version), __FILE__, __func__, __LINE__)
+ static BOOL rdstls_is_version_supported_(rdpRdstls* rdstls, uint16_t version, const char* file,
+                                          const char* fkt, size_t line)
+-- 
+2.54.0
+

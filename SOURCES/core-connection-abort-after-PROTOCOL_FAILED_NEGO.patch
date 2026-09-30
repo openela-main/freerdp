@@ -1,0 +1,28 @@
+From 5babd3c43a2c0b491b8fe43fa2a1387250c4dd20 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Mon, 24 Aug 2026 09:52:48 +0200
+Subject: [PATCH] [core,connection] abort after PROTOCOL_FAILED_NEGO
+
+when this condition was encountered, send the failure response and
+terminate.
+---
+ libfreerdp/core/connection.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/libfreerdp/core/connection.c b/libfreerdp/core/connection.c
+index 001b56944..c7f120b00 100644
+--- a/libfreerdp/core/connection.c
++++ b/libfreerdp/core/connection.c
+@@ -1521,6 +1521,12 @@ BOOL rdp_server_accept_nego(rdpRdp* rdp, wStream* s)
+ 	if (!nego_send_negotiation_response(nego))
+ 		return FALSE;
+ 
++	if ((SelectedProtocol & PROTOCOL_FAILED_NEGO) != 0)
++	{
++		WLog_ERR(TAG, "Protocol security negotiation failed, disconnecting.");
++		return FALSE;
++	}
++
+ 	SelectedProtocol = nego_get_selected_protocol(nego);
+ 	status = FALSE;
+ 

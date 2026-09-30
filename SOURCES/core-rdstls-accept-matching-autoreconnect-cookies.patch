@@ -1,0 +1,27 @@
+From bab8c7126257d762a6a24ae90578d9c6fa5cd91a Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 15 Sep 2026 13:19:07 +0200
+Subject: [PATCH] [core,rdstls] accept matching autoreconnect cookies
+
+Backport of commit bab8c7126257d762a6a24ae90578d9c6fa5cd91a.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+---
+ libfreerdp/core/rdstls.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/rdstls.c b/libfreerdp/core/rdstls.c
+index fff802a81c..911e8cdf68 100644
+--- a/libfreerdp/core/rdstls.c
++++ b/libfreerdp/core/rdstls.c
+@@ -776,5 +776,6 @@ static BOOL rdstls_process_authentication_request_with_cookie(rdpRdstls* rdstls,
+ 
+ 	WLog_Print(rdstls->log, WLOG_DEBUG, "RDSTLS Cookie matches. Grant access.");
+-	return FALSE;
++	rdstls->resultCode = RDSTLS_RESULT_SUCCESS;
++	return TRUE;
+ }
+ 
+-- 
+2.54.0
+

@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.11
+Release:        12%{?dist}.13
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -359,13 +359,25 @@ Patch:          codec-planar-fix-input-checks.patch
 
 # CVE-2026-73241
 # https://github.com/FreeRDP/FreeRDP/commit/b05a9510787c83c87ffc5fa8d7cc9f06ed971695
+# https://github.com/FreeRDP/FreeRDP/commit/d620ba92b29efa61467cd9bf538b712479c7b8e3
+# https://github.com/FreeRDP/FreeRDP/commit/8cc061211378a621908ee7056977bc855e870c7c
+# https://github.com/FreeRDP/FreeRDP/commit/bab8c7126257d762a6a24ae90578d9c6fa5cd91a
+# https://github.com/FreeRDP/FreeRDP/commit/7bfd78bbd247e46771b8de36ece3ff76d22b114c
 Patch:          core-rdstls-tighten-state-and-bounds-checks.patch
+Patch:          core-rdstls-improve-version-handling.patch
+Patch:          core-rdstls-Fix-version-validation-macro.patch
+Patch:          core-rdstls-accept-matching-autoreconnect-cookies.patch
+Patch:          core-rdstls-validate-cookie-session-ID-length.patch
 
 # CVE-2026-55193
 # https://github.com/FreeRDP/FreeRDP/commit/a863ef1cf1cdabf9019280e5658f806e73bb50e8
 # https://github.com/FreeRDP/FreeRDP/commit/e4d8b856aa4d868c30ffbfa3ff430781197a0bfc
 Patch:          core-gateway-rpc-header-max-fragment-size-checks.patch
 Patch:          core-gateway-ensure-capacity-in-rpc_channel_read.patch
+
+# CVE-2026-91949
+# https://github.com/FreeRDP/FreeRDP/commit/0819472027396c539b58d02ca5ab105698dd590f
+Patch:          core-connection-abort-after-PROTOCOL_FAILED_NEGO.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -690,6 +702,14 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Mon Sep 21 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.13
+- Abort after PROTOCOL_FAILED_NEGO (CVE-2026-91949)
+  Resolves: RHEL-264913
+
+* Mon Sep 14 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.12
+- Fix several regressions in CVE-2026-73241
+  Resolves: RHEL-257781
+
 * Tue Aug 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.11
 - Fix RPC gateway fragment size and capacity checks (CVE-2026-55193)
   Resolves: RHEL-247346
