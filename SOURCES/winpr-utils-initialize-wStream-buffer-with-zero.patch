@@ -1,0 +1,22 @@
+From 4854f2e3a53d27e9ed4e67c690ed707f0023e363 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 13 Aug 2026 11:24:02 +0200
+Subject: [PATCH] [winpr,utils] initialize wStream buffer with zero
+
+---
+ winpr/libwinpr/utils/stream.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/winpr/libwinpr/utils/stream.c b/winpr/libwinpr/utils/stream.c
+index b8eaea5dc..ae2af3bcb 100644
+--- a/winpr/libwinpr/utils/stream.c
++++ b/winpr/libwinpr/utils/stream.c
+@@ -105,7 +105,7 @@ wStream* Stream_New(BYTE* buffer, size_t size)
+ 	if (buffer)
+ 		s->buffer = buffer;
+ 	else
+-		s->buffer = (BYTE*)malloc(size);
++		s->buffer = (BYTE*)calloc(size, sizeof(BYTE));
+ 
+ 	if (!s->buffer)
+ 	{

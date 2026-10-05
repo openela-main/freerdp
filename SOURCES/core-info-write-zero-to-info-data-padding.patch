@@ -1,0 +1,22 @@
+From 2c1876915bf84287afed236adce20c7daddee77b Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 13 Aug 2026 11:23:46 +0200
+Subject: [PATCH] [core,info] write zero to info data padding
+
+---
+ libfreerdp/core/info.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/info.c b/libfreerdp/core/info.c
+index 08d11e2..d44ddae 100644
+--- a/libfreerdp/core/info.c
++++ b/libfreerdp/core/info.c
+@@ -1476,7 +1476,7 @@ static BOOL rdp_write_logon_info_plain(wStream* s)
+ 	if (!Stream_EnsureRemainingCapacity(s, 576))
+ 		return FALSE;
+ 
+-	Stream_Seek(s, 576);
++	Stream_Zero(s, 576);
+ 	return TRUE;
+ }
+ 

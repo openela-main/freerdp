@@ -1,0 +1,44 @@
+From 7732f11376e7d51aabbdf5a7a778a49fd4fefb6c Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 30 Sep 2026 13:19:57 +0000
+Subject: [PATCH] [allocations] fix growth of preallocated buffers
+
+Partial backport of commit 118afc0b954ba9d5632b7836ad24e454555ed113.
+Only winpr/libwinpr/utils/stream.c is included; the other 27 files change
+unrelated allocation sites.
+---
+ winpr/libwinpr/utils/stream.c | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/winpr/libwinpr/utils/stream.c b/winpr/libwinpr/utils/stream.c
+index ae2af3b..ae9d118 100644
+--- a/winpr/libwinpr/utils/stream.c
++++ b/winpr/libwinpr/utils/stream.c
+@@ -46,20 +46,19 @@ BOOL Stream_EnsureCapacity(wStream* s, size_t size)
+ 	WINPR_ASSERT(s);
+ 	if (s->capacity < size)
+ 	{
+-		size_t position = 0;
+-		size_t old_capacity = 0;
+-		size_t new_capacity = 0;
+ 		BYTE* new_buf = NULL;
+ 
+-		old_capacity = s->capacity;
+-		new_capacity = old_capacity;
++		size_t old_capacity = s->capacity;
++		size_t new_capacity = old_capacity;
+ 
+ 		do
+ 		{
+-			new_capacity *= 2;
+-		} while (new_capacity < size);
++			if (new_capacity > SIZE_MAX - 128ull)
++				return FALSE;
++			new_capacity += 128ull;
++		} while (new_capacity <= size);
+ 
+-		position = Stream_GetPosition(s);
++		const size_t position = Stream_GetPosition(s);
+ 
+ 		if (!s->isOwner)
+ 		{

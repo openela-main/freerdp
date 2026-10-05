@@ -1,0 +1,35 @@
+From c0b65e0d2e684ae46f8f3eda054db70a1aa84604 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 13 Aug 2026 09:52:16 +0200
+Subject: [PATCH] [core,gateway] limit websocket request size
+
+---
+ libfreerdp/core/gateway/websocket.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/libfreerdp/core/gateway/websocket.c b/libfreerdp/core/gateway/websocket.c
+index ccc36c3b4..d2c6e468a 100644
+--- a/libfreerdp/core/gateway/websocket.c
++++ b/libfreerdp/core/gateway/websocket.c
+@@ -23,6 +23,8 @@
+ 
+ #define TAG FREERDP_TAG("core.gateway.websocket")
+ 
++#define RESPONSE_SIZE_LIMIT (64ULL * 1024ULL * 1024ULL)
++
+ struct s_websocket_context
+ {
+ 	size_t payloadLength;
+@@ -422,6 +424,12 @@ int websocket_context_read(websocket_context* encodingContext, BIO* bio, BYTE* p
+ 					    (encodingContext->payloadLength) << 8 | buffer[0];
+ 					encodingContext->lengthAndMaskPosition += status;
+ 				}
++				if (encodingContext->payloadLength > XXX)
++				{
++					WLog_ERR(TAG, "received excessive payload size %" PRIuz ", aborting",
++					         encodingContext->payloadLength);
++					return -1;
++				}
+ 				encodingContext->state =
+ 				    (encodingContext->masking ? WebSocketStateMaskingKey : WebSocketStatePayload);
+ 			}

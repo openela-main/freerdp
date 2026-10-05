@@ -1,0 +1,36 @@
+From a8469450fe2828f211cad60a23ee23fefb6e8e00 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 13 Aug 2026 09:52:17 +0200
+Subject: [PATCH] [winpr,utils] abort Stream_Capacity checks early
+
+when a size exceeding SIZE_MAX in some way is requested abort early
+---
+ winpr/libwinpr/utils/stream.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/winpr/libwinpr/utils/stream.c b/winpr/libwinpr/utils/stream.c
+index c0beba7fcafc..3d0afc465b71 100644
+--- a/winpr/libwinpr/utils/stream.c
++++ b/winpr/libwinpr/utils/stream.c
+@@ -48,6 +48,9 @@ BOOL Stream_EnsureCapacity(wStream* s, size_t size)
+ 		return TRUE;
+ 
+ 	const size_t increment = 128ull;
++	if (size > SIZE_MAX - increment)
++		return FALSE;
++
+ 	const size_t old_capacity = s->capacity;
+ 	const size_t new_capacity = size + increment - size % increment;
+ 	const size_t position = Stream_GetPosition(s);
+@@ -79,7 +82,10 @@ BOOL Stream_EnsureCapacity(wStream* s, size_t size)
+ 
+ BOOL Stream_EnsureRemainingCapacity(wStream* s, size_t size)
+ {
+-	if (Stream_GetPosition(s) + size > Stream_Capacity(s))
++	const size_t pos = Stream_GetPosition(s);
++	if (pos > SIZE_MAX - size)
++		return FALSE;
++	if (pos + size > Stream_Capacity(s))
+ 		return Stream_EnsureCapacity(s, Stream_Capacity(s) + size);
+ 	return TRUE;
+ }

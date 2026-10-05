@@ -1,0 +1,24 @@
+From b606dd9f4c1209b8dc163e2a0a9640b1cb5dfb1e Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 19 Aug 2026 09:16:00 +0200
+Subject: [PATCH] [codec,nsc] add missing NULL check
+
+---
+ libfreerdp/codec/nsc.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/codec/nsc.c b/libfreerdp/codec/nsc.c
+index 951983a1d..0d0841d70 100644
+--- a/libfreerdp/codec/nsc.c
++++ b/libfreerdp/codec/nsc.c
+@@ -435,7 +435,9 @@ BOOL nsc_process_message(NSC_CONTEXT* WINPR_RESTRICT context, UINT16 bpp, UINT32
+                          BYTE* WINPR_RESTRICT pDstData, UINT32 DstFormat, UINT32 nDstStride,
+                          UINT32 nXDst, UINT32 nYDst, UINT32 nWidth, UINT32 nHeight, UINT32 flip)
+ {
+-	WINPR_ASSERT(context);
++	if (!context)
++		return FALSE;
++
+ 	WINPR_ASSERT(context->priv);
+ 
+ 	wStream* s = NULL;

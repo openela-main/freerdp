@@ -30,7 +30,7 @@
 Name:           freerdp
 Epoch:          2
 Version:        3.10.3
-Release:        12%{?dist}.13
+Release:        12%{?dist}.14
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -379,6 +379,56 @@ Patch:          core-gateway-ensure-capacity-in-rpc_channel_read.patch
 # https://github.com/FreeRDP/FreeRDP/commit/0819472027396c539b58d02ca5ab105698dd590f
 Patch:          core-connection-abort-after-PROTOCOL_FAILED_NEGO.patch
 
+# CVE-2026-85089
+# https://github.com/FreeRDP/FreeRDP/commit/056cede398d71c1f2540baebc26ec3327a249301
+Patch:          core-info-write-zero-to-info-data-padding.patch
+
+# CVE-2026-91946
+# https://github.com/FreeRDP/FreeRDP/commit/483c9388119f06bac420d92053cff9ef94e83bea
+Patch:          winpr-utils-initialize-wStream-buffer-with-zero.patch
+
+# CVE-2026-91947
+# https://github.com/FreeRDP/FreeRDP/commit/a41558a3da0d59da3787e792c028e8953324e71a
+Patch:          core-server-lock-dynamic-channel-list-while-parsing.patch
+
+# CVE-2026-91950
+# https://github.com/FreeRDP/FreeRDP/commit/2b1dd55874b41cf4d9458ba03d04a79b05721420
+Patch:          utils-rdpdr-force-64bit-arithmetic-in-rdpdr_dump_pac.patch
+
+# CVE-2026-91953
+# CVE-2026-91964
+# https://github.com/FreeRDP/FreeRDP/commit/70d05577a3a161e1fa2666ab7dadb01d14661e94
+# https://github.com/FreeRDP/FreeRDP/commit/64893d755ead9483b69cacb3378340e9a206def5
+# https://github.com/FreeRDP/FreeRDP/commit/fa757caea453cbe78d74c95096684b8f96a3d78c
+Patch:          core-nego-fix-capacity-checks.patch
+Patch:          core-nego-fix-leak-in-case-of-failure.patch
+Patch:          core-nego-fix-resource-leak.patch
+
+# CVE-2026-91954
+# https://github.com/FreeRDP/FreeRDP/commit/5c12d4eff64f9cba9e7710341b712cf426d399c3
+Patch:          codec-nsc-add-missing-NULL-check.patch
+
+# CVE-2026-91956
+# https://github.com/FreeRDP/FreeRDP/commit/5372255a1dd2184b5ffebb934fab974cea328dda
+Patch:          channel-urbdrc-check-func_get_ep_desc-for-validity.patch
+
+# CVE-2026-91959
+# CVE-2026-91960
+# https://github.com/FreeRDP/FreeRDP/commit/c45ee2417e0f83b69327d5054889274e29c81868
+# https://github.com/FreeRDP/FreeRDP/commit/118afc0b954ba9d5632b7836ad24e454555ed113
+# https://github.com/FreeRDP/FreeRDP/commit/3b286a923d3fa933ba0e7dfee2df08116a6204c1
+# https://github.com/FreeRDP/FreeRDP/commit/a8469450fe2828f211cad60a23ee23fefb6e8e00
+# https://github.com/FreeRDP/FreeRDP/commit/75a215ac391eab9cf7d0cf212f47f2cfd1169b37
+Patch:          core-gateway-limit-websocket-request-size.patch
+Patch:          allocations-fix-growth-of-preallocated-buffers.patch
+Patch:          winpr-stream-improve-return-checks-in-Stream_EnsureCapacity.patch
+Patch:          winpr-utils-abort-Stream_Capacity-checks-early.patch
+Patch:          core-gateway-fix-missing-length-check.patch
+
+# CVE-2026-91963
+# https://github.com/FreeRDP/FreeRDP/commit/d7f677e3cf836e71bc52c08177bbba8c889a6f8e
+Patch:          urbdrc-Fix-completion-framing-for-transfer-requests.patch
+
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  alsa-lib-devel
@@ -702,6 +752,14 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Wed Sep 30 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.14
+- Backport several CVE fixes (CVE-2026-85089, CVE-2026-91946, CVE-2026-91947,
+  CVE-2026-91950, CVE-2026-91953, CVE-2026-91954, CVE-2026-91956,
+  CVE-2026-91959, CVE-2026-91960, CVE-2026-91963, CVE-2026-91964)
+  Resolves: RHEL-253892, RHEL-260716, RHEL-260750, RHEL-260763, RHEL-260778
+  Resolves: RHEL-260794, RHEL-260807, RHEL-260842, RHEL-260856, RHEL-260891
+  Resolves: RHEL-260912
+
 * Mon Sep 21 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.13
 - Abort after PROTOCOL_FAILED_NEGO (CVE-2026-91949)
   Resolves: RHEL-264913

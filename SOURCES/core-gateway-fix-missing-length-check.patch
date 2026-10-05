@@ -1,0 +1,37 @@
+From 40b5748620f40c1ffa7547eeeae8bedeedc0287a Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 13 Aug 2026 09:52:18 +0200
+Subject: [PATCH] [core,gateway] fix missing length check
+
+---
+ libfreerdp/core/gateway/rts.c       | 3 +++
+ libfreerdp/core/gateway/websocket.c | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/gateway/rts.c b/libfreerdp/core/gateway/rts.c
+index 705fb47d2..16d5d14d1 100644
+--- a/libfreerdp/core/gateway/rts.c
++++ b/libfreerdp/core/gateway/rts.c
+@@ -725,6 +725,9 @@ static BOOL rts_read_result(wStream* s, p_result_t* result, BOOL silent)
+ 	if (!Stream_ConditionalCheckAndLogRequiredLength(TAG, s, 2, silent))
+ 		return FALSE;
+ 	Stream_Read_UINT16(s, result->result);
++
++	if (!Stream_ConditionalCheckAndLogRequiredLength(TAG, s, 2, silent))
++		return FALSE;
+ 	Stream_Read_UINT16(s, result->reason);
+ 
+ 	return rts_read_syntax_id(s, &result->transfer_syntax, silent);
+diff --git a/libfreerdp/core/gateway/websocket.c b/libfreerdp/core/gateway/websocket.c
+index d2c6e468a..d0d28e2e6 100644
+--- a/libfreerdp/core/gateway/websocket.c
++++ b/libfreerdp/core/gateway/websocket.c
+@@ -424,7 +424,7 @@ int websocket_context_read(websocket_context* encodingContext, BIO* bio, BYTE* p
+ 					    (encodingContext->payloadLength) << 8 | buffer[0];
+ 					encodingContext->lengthAndMaskPosition += status;
+ 				}
+-				if (encodingContext->payloadLength > XXX)
++				if (encodingContext->payloadLength > RESPONSE_SIZE_LIMIT)
+ 				{
+ 					WLog_ERR(TAG, "received excessive payload size %" PRIuz ", aborting",
+ 					         encodingContext->payloadLength);
