@@ -1,0 +1,379 @@
+From d5a8cb0f52d64f3e96dd27e88855f558ad9e0884 Mon Sep 17 00:00:00 2001
+From: uchouT <i@uchout.moe>
+Date: Wed, 29 Jul 2026 05:37:18 +0000
+Subject: [PATCH] [urbdrc] Fix completion framing for transfer requests
+
+Select URB_COMPLETION only for TRANSFER_IN_REQUEST results that carry output data. Keep transferred byte counts in URB_COMPLETION_NO_DATA for TRANSFER_OUT_REQUEST results without serializing an OutputBuffer.
+
+Preserve request direction across asynchronous callbacks and report actual transfer lengths for control and isochronous completions.
+
+Signed-off-by: uchouT <i@uchout.moe>
+---
+ channels/urbdrc/client/data_transfer.c        | 57 ++++++++++++-------
+ .../urbdrc/client/libusb/libusb_udevice.c     | 34 +++++++----
+ channels/urbdrc/client/urbdrc_main.h          | 10 ++--
+ 3 files changed, 65 insertions(+), 36 deletions(-)
+
+diff --git a/channels/urbdrc/client/data_transfer.c b/channels/urbdrc/client/data_transfer.c
+index c547d52d7..a3953c0d9 100644
+--- a/channels/urbdrc/client/data_transfer.c
++++ b/channels/urbdrc/client/data_transfer.c
+@@ -53,14 +53,25 @@ static void usb_process_get_port_status(IUDEVICE* pdev, wStream* out)
+ 	}
+ }
+ 
++/* [MS-RDPEUSB] 2.2.7.2 and 2.2.7.3:
++ * Only a TRANSFER_IN_REQUEST that returns data carries an OutputBuffer.
++ * TRANSFER_OUT_REQUEST reports the transferred byte count in OutputBufferSize,
++ * but always uses URB_COMPLETION_NO_DATA. */
++static UINT32 urb_completion_payload_size(int transferDir, UINT32 outputBufferSize)
++{
++	return (transferDir == USBD_TRANSFER_DIRECTION_IN) ? outputBufferSize : 0;
++}
++
+ static UINT urb_write_completion(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback, BOOL noAck,
+                                  wStream* out, UINT32 InterfaceId, UINT32 MessageId,
+-                                 UINT32 RequestId, UINT32 usbd_status, UINT32 OutputBufferSize)
++                                 UINT32 RequestId, UINT32 usbd_status, UINT32 OutputBufferSize,
++                                 int transferDir)
+ {
+ 	if (!out)
+ 		return ERROR_INVALID_PARAMETER;
+ 
+-	if (Stream_Capacity(out) < OutputBufferSize + 36)
++	const UINT32 payloadSize = urb_completion_payload_size(transferDir, OutputBufferSize);
++	if (Stream_Capacity(out) < payloadSize + 36ULL)
+ 	{
+ 		Stream_Free(out, TRUE);
+ 		return ERROR_INVALID_PARAMETER;
+@@ -70,7 +81,7 @@ static UINT urb_write_completion(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callba
+ 	Stream_Write_UINT32(out, InterfaceId); /** interface */
+ 	Stream_Write_UINT32(out, MessageId);   /** message id */
+ 
+-	if (OutputBufferSize != 0)
++	if (payloadSize != 0)
+ 		Stream_Write_UINT32(out, URB_COMPLETION);
+ 	else
+ 		Stream_Write_UINT32(out, URB_COMPLETION_NO_DATA);
+@@ -83,7 +94,7 @@ static UINT urb_write_completion(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callba
+ 	Stream_Write_UINT32(out, usbd_status);      /** UsbdStatus */
+ 	Stream_Write_UINT32(out, 0);                /** HResult */
+ 	Stream_Write_UINT32(out, OutputBufferSize); /** OutputBufferSize */
+-	Stream_Seek(out, OutputBufferSize);
++	Stream_Seek(out, payloadSize);
+ 
+ 	if (!noAck)
+ 		return stream_write_and_free(callback->plugin, callback->channel, out);
+@@ -698,17 +709,18 @@ static UINT urb_control_transfer(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callba
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static void urb_bulk_transfer_cb(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback, wStream* out,
+                                  UINT32 InterfaceId, BOOL noAck, UINT32 MessageId, UINT32 RequestId,
+                                  UINT32 NumberOfPackets, UINT32 status, UINT32 StartFrame,
+-                                 UINT32 ErrorCount, UINT32 OutputBufferSize)
++                                 UINT32 ErrorCount, UINT32 OutputBufferSize,
++                                 int transferDir)
+ {
+ 	if (!pdev->isChannelClosed(pdev))
+ 		urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId, status,
+-		                     OutputBufferSize);
++		                     OutputBufferSize, transferDir);
+ 	else
+ 		Stream_Free(out, TRUE);
+ }
+@@ -745,26 +757,29 @@ static UINT urb_bulk_or_interrupt_transfer(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBA
+ 	return pdev->bulk_or_interrupt_transfer(
+ 	    pdev, callback, MessageId, RequestId, EndpointAddress, TransferFlags, noAck,
+ 	    OutputBufferSize, (transferDir == USBD_TRANSFER_DIRECTION_OUT) ? Stream_Pointer(s) : NULL,
++	    transferDir,
+ 	    urb_bulk_transfer_cb, 10000);
+ }
+ 
+ static void urb_isoch_transfer_cb(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback, wStream* out,
+                                   UINT32 InterfaceId, BOOL noAck, UINT32 MessageId,
+                                   UINT32 RequestId, UINT32 NumberOfPackets, UINT32 status,
+-                                  UINT32 StartFrame, UINT32 ErrorCount, UINT32 OutputBufferSize)
++                                  UINT32 StartFrame, UINT32 ErrorCount, UINT32 OutputBufferSize,
++                                  int transferDir)
+ {
+ 	if (!noAck)
+ 	{
+ 		UINT32 packetSize = (status == 0) ? NumberOfPackets * 12 : 0;
++		const UINT32 payloadSize = urb_completion_payload_size(transferDir, OutputBufferSize);
+ 		Stream_SetPosition(out, 0);
+ 		/* fill the send data */
+ 		Stream_Write_UINT32(out, InterfaceId); /** interface */
+ 		Stream_Write_UINT32(out, MessageId);   /** message id */
+ 
+-		if (OutputBufferSize == 0)
+-			Stream_Write_UINT32(out, URB_COMPLETION_NO_DATA); /** function id */
+-		else
++		if (payloadSize != 0)
+ 			Stream_Write_UINT32(out, URB_COMPLETION); /** function id */
++		else
++			Stream_Write_UINT32(out, URB_COMPLETION_NO_DATA); /** function id */
+ 
+ 		Stream_Write_UINT32(out, RequestId);       /** RequestId */
+ 		Stream_Write_UINT32(out, 20 + packetSize); /** CbTsUrbResult */
+@@ -789,7 +804,7 @@ static void urb_isoch_transfer_cb(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callb
+ 
+ 		Stream_Write_UINT32(out, 0);                /** HResult */
+ 		Stream_Write_UINT32(out, OutputBufferSize); /** OutputBufferSize */
+-		Stream_Seek(out, OutputBufferSize);
++		Stream_Seek(out, payloadSize);
+ 
+ 		stream_write_and_free(callback->plugin, callback->channel, out);
+ 	}
+@@ -835,7 +850,7 @@ static UINT urb_isoch_transfer(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback
+ 	return pdev->isoch_transfer(
+ 	    pdev, callback, MessageId, RequestId, EndpointAddress, TransferFlags, StartFrame,
+ 	    ErrorCount, noAck, packetDescriptorData, NumberOfPackets, OutputBufferSize,
+-	    (transferDir == USBD_TRANSFER_DIRECTION_OUT) ? Stream_Pointer(s) : NULL,
++	    (transferDir == USBD_TRANSFER_DIRECTION_OUT) ? Stream_Pointer(s) : NULL, transferDir,
+ 	    urb_isoch_transfer_cb, 2000);
+ }
+ 
+@@ -916,7 +931,7 @@ static UINT urb_control_descriptor_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBA
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static UINT urb_control_get_status_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+@@ -975,7 +990,7 @@ static UINT urb_control_get_status_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBA
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static UINT urb_control_vendor_or_class_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+@@ -1058,7 +1073,7 @@ static UINT urb_control_vendor_or_class_request(IUDEVICE* pdev, URBDRC_CHANNEL_C
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static UINT urb_os_feature_descriptor_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+@@ -1143,7 +1158,7 @@ static UINT urb_os_feature_descriptor_request(IUDEVICE* pdev, URBDRC_CHANNEL_CAL
+ 		WLog_Print(urbdrc->log, WLOG_DEBUG, "os_feature_descriptor_request: error num %d", ret);
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static UINT urb_pipe_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback, wStream* s,
+@@ -1222,7 +1237,7 @@ static UINT urb_pipe_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+ 		return ERROR_OUTOFMEMORY;
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId, ret,
+-	                            0);
++	                            0, transferDir);
+ }
+ 
+ static UINT urb_get_current_frame_number(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+@@ -1339,7 +1354,7 @@ static UINT urb_control_get_configuration_request(IUDEVICE* pdev, URBDRC_CHANNEL
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ /* Unused function for current server */
+@@ -1397,7 +1412,7 @@ static UINT urb_control_get_interface_request(IUDEVICE* pdev, URBDRC_CHANNEL_CAL
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static UINT urb_control_feature_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+@@ -1491,7 +1506,7 @@ static UINT urb_control_feature_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK*
+ 	}
+ 
+ 	return urb_write_completion(pdev, callback, noAck, out, InterfaceId, MessageId, RequestId,
+-	                            usbd_status, OutputBufferSize);
++	                            usbd_status, OutputBufferSize, transferDir);
+ }
+ 
+ static UINT urbdrc_process_transfer_request(IUDEVICE* pdev, URBDRC_CHANNEL_CALLBACK* callback,
+diff --git a/channels/urbdrc/client/libusb/libusb_udevice.c b/channels/urbdrc/client/libusb/libusb_udevice.c
+index 98963e01d..d543749de 100644
+--- a/channels/urbdrc/client/libusb/libusb_udevice.c
++++ b/channels/urbdrc/client/libusb/libusb_udevice.c
+@@ -73,6 +73,8 @@ struct _ASYNC_TRANSFER_USER_DATA
+ 	UINT32 ErrorCount;
+ 	IUDEVICE* idev;
+ 	UINT32 OutputBufferSize;
++	/* Completion framing depends on the outer RDPEUSB request direction. */
++	int transferDir;
+ 	URBDRC_CHANNEL_CALLBACK* callback;
+ 	t_isoch_transfer_cb cb;
+ 	wArrayList* queue;
+@@ -194,7 +196,8 @@ const char* usb_interface_class_to_string(uint8_t class)
+ static ASYNC_TRANSFER_USER_DATA* async_transfer_user_data_new(IUDEVICE* idev, UINT32 MessageId,
+                                                               size_t offset, size_t BufferSize,
+                                                               const BYTE* data, size_t packetSize,
+-                                                              BOOL NoAck, t_isoch_transfer_cb cb,
++                                                              BOOL NoAck, int transferDir,
++                                                              t_isoch_transfer_cb cb,
+                                                               URBDRC_CHANNEL_CALLBACK* callback)
+ {
+ 	ASYNC_TRANSFER_USER_DATA* user_data = calloc(1, sizeof(ASYNC_TRANSFER_USER_DATA));
+@@ -214,10 +217,10 @@ static ASYNC_TRANSFER_USER_DATA* async_transfer_user_data_new(IUDEVICE* idev, UI
+ 	Stream_Seek(user_data->data, offset); /* Skip header offset */
+ 	if (data)
+ 		memcpy(Stream_Pointer(user_data->data), data, BufferSize);
+-	else
+-		user_data->OutputBufferSize = BufferSize;
++
+ 
+ 	user_data->noack = NoAck;
++	user_data->transferDir = transferDir;
+ 	user_data->cb = cb;
+ 	user_data->callback = callback;
+ 	user_data->idev = idev;
+@@ -275,6 +278,7 @@ static void LIBUSB_CALL func_iso_callback(struct libusb_transfer* transfer)
+ 					index += act_len;
+ 				}
+ 			}
++			user_data->OutputBufferSize = index;
+ 		}
+ 			/* fallthrough */
+ 
+@@ -294,7 +298,7 @@ static void LIBUSB_CALL func_iso_callback(struct libusb_transfer* transfer)
+ 					              InterfaceId, user_data->noack, user_data->MessageId, RequestID,
+ 					              transfer->num_iso_packets, transfer->status,
+ 					              user_data->StartFrame, user_data->ErrorCount,
+-					              user_data->OutputBufferSize);
++					              user_data->OutputBufferSize, user_data->transferDir);
+ 					user_data->data = NULL;
+ 				}
+ 				ArrayList_Remove(list, transfer);
+@@ -361,7 +365,7 @@ static void LIBUSB_CALL func_bulk_transfer_cb(struct libusb_transfer* transfer)
+ 		user_data->cb(user_data->idev, user_data->callback, user_data->data, InterfaceId,
+ 		              user_data->noack, user_data->MessageId, RequestID, transfer->num_iso_packets,
+ 		              transfer->status, user_data->StartFrame, user_data->ErrorCount,
+-		              transfer->actual_length);
++		              transfer->actual_length, user_data->transferDir);
+ 		user_data->data = NULL;
+ 		ArrayList_Remove(list, transfer);
+ 	}
+@@ -943,6 +947,10 @@ static int libusb_udev_os_feature_descriptor_request(IUDEVICE* idev, UINT32 Requ
+ 	UDEVICE* pdev = (UDEVICE*)idev;
+ 	BYTE ms_string_desc[0x13] = { 0 };
+ 	int error = 0;
++
++	const UINT16 requestedSize = (UINT16)*BufferSize;
++	*BufferSize = 0;
++
+ 	/*
+ 	pdev->request_queue->register_request(pdev->request_queue, RequestId, NULL, 0);
+ 	*/
+@@ -959,7 +967,7 @@ static int libusb_udev_os_feature_descriptor_request(IUDEVICE* idev, UINT32 Requ
+ 		error = libusb_control_transfer(pdev->libusb_handle,
+ 		                                LIBUSB_ENDPOINT_IN | LIBUSB_REQUEST_TYPE_VENDOR | Recipient,
+ 		                                bMS_Vendorcode, (InterfaceNumber << 8) | Ms_PageIndex,
+-		                                Ms_featureDescIndex, Buffer, *BufferSize, Timeout);
++		                                Ms_featureDescIndex, Buffer, requestedSize, Timeout);
+ 		log_libusb_result(pdev->urbdrc->log, WLOG_DEBUG, "libusb_control_transfer", error);
+ 
+ 		if (error >= 0)
+@@ -1221,7 +1229,7 @@ static int libusb_udev_isoch_transfer(IUDEVICE* idev, URBDRC_CHANNEL_CALLBACK* c
+                                       UINT32 TransferFlags, UINT32 StartFrame, UINT32 ErrorCount,
+                                       BOOL NoAck, const BYTE* packetDescriptorData,
+                                       UINT32 NumberOfPackets, UINT32 BufferSize, const BYTE* Buffer,
+-                                      t_isoch_transfer_cb cb, UINT32 Timeout)
++                                      int transferDir, t_isoch_transfer_cb cb, UINT32 Timeout)
+ {
+ 	UINT32 iso_packet_size;
+ 	UDEVICE* pdev = (UDEVICE*)idev;
+@@ -1236,7 +1244,7 @@ static int libusb_udev_isoch_transfer(IUDEVICE* idev, URBDRC_CHANNEL_CALLBACK* c
+ 
+ 	urbdrc = pdev->urbdrc;
+ 	user_data = async_transfer_user_data_new(idev, MessageId, 48, BufferSize, Buffer,
+-	                                         outSize + 1024, NoAck, cb, callback);
++	                                         outSize + 1024, NoAck, transferDir, cb, callback);
+ 
+ 	if (!user_data)
+ 		return -1;
+@@ -1298,7 +1306,10 @@ static BOOL libusb_udev_control_transfer(IUDEVICE* idev, UINT32 RequestId, UINT3
+ 	if (status >= 0)
+ 		*BufferSize = (UINT32)status;
+ 	else
++	{
++		*BufferSize = 0;
+ 		log_libusb_result(pdev->urbdrc->log, WLOG_ERROR, "libusb_control_transfer", status);
++	}
+ 
+ 	if (!func_set_usbd_status(pdev->urbdrc, pdev, UrbdStatus, status))
+ 		return FALSE;
+@@ -1310,7 +1321,8 @@ static int libusb_udev_bulk_or_interrupt_transfer(IUDEVICE* idev, URBDRC_CHANNEL
+                                                   UINT32 MessageId, UINT32 RequestId,
+                                                   UINT32 EndpointAddress, UINT32 TransferFlags,
+                                                   BOOL NoAck, UINT32 BufferSize, const BYTE* data,
+-                                                  t_isoch_transfer_cb cb, UINT32 Timeout)
++                                                  int transferDir, t_isoch_transfer_cb cb,
++                                                  UINT32 Timeout)
+ {
+ 	UINT32 transfer_type;
+ 	UDEVICE* pdev = (UDEVICE*)idev;
+@@ -1324,8 +1336,8 @@ static int libusb_udev_bulk_or_interrupt_transfer(IUDEVICE* idev, URBDRC_CHANNEL
+ 		return -1;
+ 
+ 	urbdrc = pdev->urbdrc;
+-	user_data =
+-	    async_transfer_user_data_new(idev, MessageId, 36, BufferSize, data, 0, NoAck, cb, callback);
++	user_data = async_transfer_user_data_new(idev, MessageId, 36, BufferSize, data, 0, NoAck,
++	                                         transferDir, cb, callback);
+ 
+ 	if (!user_data)
+ 		return -1;
+diff --git a/channels/urbdrc/client/urbdrc_main.h b/channels/urbdrc/client/urbdrc_main.h
+index 83357148e..3e83c02a3 100644
+--- a/channels/urbdrc/client/urbdrc_main.h
++++ b/channels/urbdrc/client/urbdrc_main.h
+@@ -114,7 +114,8 @@ struct _TRANSFER_DATA
+ typedef void (*t_isoch_transfer_cb)(IUDEVICE* idev, URBDRC_CHANNEL_CALLBACK* callback, wStream* out,
+                                     UINT32 InterfaceId, BOOL noAck, UINT32 MessageId,
+                                     UINT32 RequestId, UINT32 NumberOfPackets, UINT32 status,
+-                                    UINT32 StartFrame, UINT32 ErrorCount, UINT32 OutputBufferSize);
++                                    UINT32 StartFrame, UINT32 ErrorCount, UINT32 OutputBufferSize,
++                                    int transferDir);
+ 
+ struct _IUDEVICE
+ {
+@@ -123,8 +124,8 @@ struct _IUDEVICE
+ 	                      UINT32 RequestId, UINT32 EndpointAddress, UINT32 TransferFlags,
+ 	                      UINT32 StartFrame, UINT32 ErrorCount, BOOL NoAck,
+ 	                      const BYTE* packetDescriptorData, UINT32 NumberOfPackets,
+-	                      UINT32 BufferSize, const BYTE* Buffer, t_isoch_transfer_cb cb,
+-	                      UINT32 Timeout);
++	                      UINT32 BufferSize, const BYTE* Buffer, int transferDir,
++	                      t_isoch_transfer_cb cb, UINT32 Timeout);
+ 
+ 	BOOL(*control_transfer)
+ 	(IUDEVICE* idev, UINT32 RequestId, UINT32 EndpointAddress, UINT32 TransferFlags,
+@@ -134,7 +135,8 @@ struct _IUDEVICE
+ 	int (*bulk_or_interrupt_transfer)(IUDEVICE* idev, URBDRC_CHANNEL_CALLBACK* callback,
+ 	                                  UINT32 MessageId, UINT32 RequestId, UINT32 EndpointAddress,
+ 	                                  UINT32 TransferFlags, BOOL NoAck, UINT32 BufferSize,
+-	                                  const BYTE* data, t_isoch_transfer_cb cb, UINT32 Timeout);
++	                                  const BYTE* data, int transferDir,
++	                                  t_isoch_transfer_cb cb, UINT32 Timeout);
+ 
+ 	int (*select_configuration)(IUDEVICE* idev, UINT32 bConfigurationValue);
+ 
