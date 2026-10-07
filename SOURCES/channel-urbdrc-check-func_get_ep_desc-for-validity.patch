@@ -1,0 +1,45 @@
+From a83659cdf8851e563fcb720ac32d922deeaa0bfb Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Mon, 17 Aug 2026 10:38:42 +0200
+Subject: [PATCH] [channel,urbdrc] check func_get_ep_desc for validity
+
+---
+ channels/urbdrc/client/libusb/libusb_udevice.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/channels/urbdrc/client/libusb/libusb_udevice.c b/channels/urbdrc/client/libusb/libusb_udevice.c
+index 98963e01d..5b32d0d7d 100644
+--- a/channels/urbdrc/client/libusb/libusb_udevice.c
++++ b/channels/urbdrc/client/libusb/libusb_udevice.c
+@@ -315,17 +315,30 @@ static const LIBUSB_ENDPOINT_DESCEIPTOR* func_get_ep_desc(LIBUSB_CONFIG_DESCRIPT
+ 	UINT32 inum, pnum;
+ 	MSUSB_INTERFACE_DESCRIPTOR** MsInterfaces;
+ 	const LIBUSB_INTERFACE* interface;
++	const LIBUSB_INTERFACE* ifc;
++	const struct libusb_interface_descriptor* altifc;
+ 	const LIBUSB_ENDPOINT_DESCEIPTOR* endpoint;
+ 	MsInterfaces = MsConfig->MsInterfaces;
+ 	interface = LibusbConfig->interface;
+ 
+ 	for (inum = 0; inum < MsConfig->NumInterfaces; inum++)
+ 	{
++		if (inum >= LibusbConfig->bNumInterfaces)
++			continue;
++
++		ifc = &interface[inum];
+ 		alt = MsInterfaces[inum]->AlternateSetting;
+-		endpoint = interface[inum].altsetting[alt].endpoint;
++		if (alt >= ifc->num_altsetting)
++			continue;
++
++		altifc = &ifc->altsetting[alt];
++		endpoint = altifc->endpoint;
+ 
+ 		for (pnum = 0; pnum < MsInterfaces[inum]->NumberOfPipes; pnum++)
+ 		{
++			if (pnum >= altifc->bNumEndpoints)
++				continue;
++
+ 			if (endpoint[pnum].bEndpointAddress == EndpointAddress)
+ 			{
+ 				return &endpoint[pnum];

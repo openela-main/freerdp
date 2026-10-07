@@ -1,0 +1,54 @@
+From 081504e09214fde5eb8be22a0505f8687721a953 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Wed, 26 Aug 2026 20:42:55 +0200
+Subject: [PATCH] [core,nego] fix leak in case of failure
+
+---
+ libfreerdp/core/nego.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/libfreerdp/core/nego.c b/libfreerdp/core/nego.c
+index b5db255aa..6034f973d 100644
+--- a/libfreerdp/core/nego.c
++++ b/libfreerdp/core/nego.c
+@@ -864,12 +864,12 @@ BOOL nego_send_negotiation_request(rdpNego* nego)
+ 
+ 	bm = Stream_GetPosition(s);
+ 	if (!Stream_SafeSeek(s, TPDU_CONNECTION_REQUEST_LENGTH))
+-		return FALSE;
++		goto fail;
+ 
+ 	if (nego->RoutingToken)
+ 	{
+ 		if (!Stream_EnsureRemainingCapacity(s, nego->RoutingTokenLength))
+-			return FALSE;
++			goto fail;
+ 		Stream_Write(s, nego->RoutingToken, nego->RoutingTokenLength);
+ 
+ 		/* Ensure Routing Token is correctly terminated - may already be present in string */
+@@ -897,13 +897,13 @@ BOOL nego_send_negotiation_request(rdpNego* nego)
+ 			cookie_length = nego->CookieMaxLength;
+ 
+ 		if (!Stream_EnsureRemainingCapacity(s, 17))
+-			return FALSE;
++			goto fail;
+ 		Stream_Write(s, "Cookie: mstshash=", 17);
+ 		if (!Stream_EnsureRemainingCapacity(s, cookie_length))
+-			return FALSE;
++			goto fail;
+ 		Stream_Write(s, (BYTE*)nego->cookie, cookie_length);
+ 		if (!Stream_EnsureRemainingCapacity(s, 2))
+-			return FALSE;
++			goto fail;
+ 		Stream_Write_UINT8(s, 0x0D); /* CR */
+ 		Stream_Write_UINT8(s, 0x0A); /* LF */
+ 	}
+@@ -917,7 +917,7 @@ BOOL nego_send_negotiation_request(rdpNego* nego)
+ 			flags |= RESTRICTED_ADMIN_MODE_REQUIRED;
+ 
+ 		if (!Stream_EnsureRemainingCapacity(s, 8))
+-			return FALSE;
++			goto fail;
+ 
+ 		Stream_Write_UINT8(s, TYPE_RDP_NEG_REQ);
+ 		Stream_Write_UINT8(s, flags);

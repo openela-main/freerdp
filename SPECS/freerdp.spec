@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        7%{?dist}.7
+Release:        7%{?dist}.8
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -239,6 +239,31 @@ Patch:          core-message-fix-PolygonSC-and-PolygonCB-async-updates.patch
 # https://github.com/FreeRDP/FreeRDP/commit/e4d8b856aa4d868c30ffbfa3ff430781197a0bfc
 Patch:          core-gateway-rpc-header-max-fragment-size-checks.patch
 Patch:          core-gateway-ensure-capacity-in-rpc_channel_read.patch
+
+# CVE-2026-91953
+# CVE-2026-91964
+# https://github.com/FreeRDP/FreeRDP/commit/70d05577a3a161e1fa2666ab7dadb01d14661e94
+# https://github.com/FreeRDP/FreeRDP/commit/64893d755ead9483b69cacb3378340e9a206def5
+# https://github.com/FreeRDP/FreeRDP/commit/fa757caea453cbe78d74c95096684b8f96a3d78c
+Patch:          core-nego-fix-capacity-checks.patch
+Patch:          core-nego-fix-leak-in-case-of-failure.patch
+Patch:          core-nego-fix-resource-leak.patch
+
+# CVE-2026-91954
+# https://github.com/FreeRDP/FreeRDP/commit/5c12d4eff64f9cba9e7710341b712cf426d399c3
+Patch:          codec-nsc-add-missing-NULL-check.patch
+
+# CVE-2026-91956
+# https://github.com/FreeRDP/FreeRDP/commit/5372255a1dd2184b5ffebb934fab974cea328dda
+Patch:          channel-urbdrc-check-func_get_ep_desc-for-validity.patch
+
+# CVE-2026-91959
+# https://github.com/FreeRDP/FreeRDP/commit/75a215ac391eab9cf7d0cf212f47f2cfd1169b37
+Patch:          core-gateway-fix-missing-length-check.patch
+
+# CVE-2026-91963
+# https://github.com/FreeRDP/FreeRDP/commit/d7f677e3cf836e71bc52c08177bbba8c889a6f8e
+Patch:          urbdrc-Fix-completion-framing-for-transfer-requests.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -497,6 +522,12 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Tue Sep 15 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.8
+- Backport several CVE fixes (CVE-2026-91953, CVE-2026-91954, CVE-2026-91956,
+  CVE-2026-91959, CVE-2026-91963, CVE-2026-91964)
+  Resolves: RHEL-260758, RHEL-260785, RHEL-260803, RHEL-260849, RHEL-260871
+  Resolves: RHEL-260902
+
 * Tue Aug 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.7
 - Fix RPC gateway fragment size and capacity checks (CVE-2026-55193)
   Resolves: RHEL-247356
