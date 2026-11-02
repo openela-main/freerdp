@@ -1,0 +1,84 @@
+From b6037c2329cfe4d66cd5aa8ac04691dfa351c48c Mon Sep 17 00:00:00 2001
+From: Ondrej Holy <oholy@redhat.com>
+Date: Tue, 27 Oct 2026 10:00:00 +0000
+Subject: [PATCH] Fixed initial alpha values for codec buffers
+
+Backport of commit 4f4e546cd42f97af4d27894dceacd85cc16579d0.
+
+Adapted for 2.11.x: keeps C89 declaration style in
+`rfx_decoder_tile_new` and uses the `1ull` size expression already used for
+the `surface->data` allocation in `gdi_CreateSurface`. The cosmetic blank
+line change in `gdi_SurfaceCommand_Progressive` is omitted.
+---
+ libfreerdp/codec/progressive.c | 2 ++
+ libfreerdp/codec/rfx.c         | 5 +++--
+ libfreerdp/gdi/gfx.c           | 7 ++++++-
+ 3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/libfreerdp/codec/progressive.c b/libfreerdp/codec/progressive.c
+index 8894b35..a26db09 100644
+--- a/libfreerdp/codec/progressive.c
++++ b/libfreerdp/codec/progressive.c
+@@ -417,6 +417,8 @@ static INLINE BOOL progressive_tile_allocate(RFX_PROGRESSIVE_TILE* tile)
+ 	{
+ 		size_t dataLen = 1ull * tile->stride * tile->height;
+ 		tile->data = (BYTE*)_aligned_malloc(dataLen, 16);
++		if (tile->data)
++			memset(tile->data, 0xFF, dataLen);
+ 	}
+ 
+ 	{
+diff --git a/libfreerdp/codec/rfx.c b/libfreerdp/codec/rfx.c
+index ccbc5af..e757987 100644
+--- a/libfreerdp/codec/rfx.c
++++ b/libfreerdp/codec/rfx.c
+@@ -155,18 +155,19 @@ static void rfx_tile_init(void* obj)
+ 
+ static void* rfx_decoder_tile_new(void* val)
+ {
++	const size_t size = 4 * 64 * 64;
+ 	RFX_TILE* tile = NULL;
+ 	WINPR_UNUSED(val);
+ 
+ 	if (!(tile = (RFX_TILE*)calloc(1, sizeof(RFX_TILE))))
+ 		return NULL;
+ 
+-	if (!(tile->data = (BYTE*)_aligned_malloc(4 * 64 * 64, 16)))
++	if (!(tile->data = (BYTE*)_aligned_malloc(size, 16)))
+ 	{
+ 		free(tile);
+ 		return NULL;
+ 	}
+-
++	memset(tile->data, 0xff, size);
+ 	tile->allocated = TRUE;
+ 	return tile;
+ }
+diff --git a/libfreerdp/gdi/gfx.c b/libfreerdp/gdi/gfx.c
+index 3970715..7564b33 100644
+--- a/libfreerdp/gdi/gfx.c
++++ b/libfreerdp/gdi/gfx.c
+@@ -112,7 +112,11 @@ static UINT gdi_ResetGraphics(RdpgfxClientContext* context,
+ 	{
+ 		surface = (gdiGfxSurface*)context->GetSurfaceData(context, pSurfaceIds[index]);
+ 
+-		if (!surface || !surface->outputMapped)
++		if (!surface)
++			continue;
++
++		memset(surface->data, 0xFF, 1ull * surface->scanline * surface->height);
++		if (!surface->outputMapped)
+ 			continue;
+ 
+ 		region16_clear(&surface->invalidRegion);
+@@ -1033,6 +1037,7 @@ static UINT gdi_CreateSurface(RdpgfxClientContext* context,
+ 		goto fail;
+ 	}
+ 
++	memset(surface->data, 0xFF, 1ull * surface->scanline * surface->height);
+ 	surface->outputMapped = FALSE;
+ 	region16_init(&surface->invalidRegion);
+ 	rc = context->SetSurfaceData(context, surface->surfaceId, (void*)surface);
+-- 
+2.55.0
+
