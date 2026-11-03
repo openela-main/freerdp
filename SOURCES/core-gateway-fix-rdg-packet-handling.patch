@@ -1,0 +1,66 @@
+From ae5f3929f0aaffc92c187bb19cd2e75797a75802 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 15 Oct 2026 10:47:44 +0200
+Subject: [PATCH] [core,gateway] Fix RDG packet handling
+
+* Log unknown HTTP transfer encoding in rdg_socket_read
+* Use BIO_wait_read instead of Sleep in rdg_read_all
+* Early return in rdg_read_data_packet if no data read
+* Check rdg_socket_read return, if status == -1 and BIO_should_retry
+  pass that on as 0 (no data read) to the upper layers
+
+When the read operation would block return early.
+
+Upstream-Status: Backport [https://github.com/FreeRDP/FreeRDP/commit/ae5f3929f0aaffc92c187bb19cd2e75797a75802]
+Upstream-PR: https://github.com/FreeRDP/FreeRDP/pull/13736
+Bug: https://github.com/FreeRDP/FreeRDP/issues/13695
+Bug: https://github.com/FreeRDP/FreeRDP/issues/13698
+---
+ libfreerdp/core/gateway/rdg.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/libfreerdp/core/gateway/rdg.c b/libfreerdp/core/gateway/rdg.c
+index 8970d01e0342..ab9a1eaadae6 100644
+--- a/libfreerdp/core/gateway/rdg.c
++++ b/libfreerdp/core/gateway/rdg.c
+@@ -392,6 +392,8 @@ static int rdg_socket_read(BIO* bio, rdpContext* context, BYTE* pBuffer, size_t
+ 			return http_chuncked_read(bio, context, pBuffer, size,
+ 			                          &encodingContext->context.chunked);
+ 		default:
++			WLog_ERR(TAG, "Unknown HTTP transfer encoding %u, aborting",
++			         encodingContext->httpTransferEncoding);
+ 			return -1;
+ 	}
+ }
+@@ -425,7 +427,7 @@ static BOOL rdg_read_all(rdpContext* context, rdpTls* tls, wStream* s, size_t si
+ 			if (!BIO_should_retry(tls->bio))
+ 				return FALSE;
+ 
+-			Sleep(10);
++			BIO_wait_read(tls->bio, 50);
+ 			continue;
+ 		}
+ 
+@@ -2056,11 +2058,15 @@ static int rdg_read_data_packet(rdpRdg* rdg, BYTE* buffer, size_t size)
+ 
+ 			if (status <= 0)
+ 			{
+-				if (!BIO_should_retry(rdg->tlsOut->bio))
+-					return -1;
+-
+-				BIO_wait_read(rdg->tlsOut->bio, 50);
+-				continue;
++				/* bio_rdp_tls_read always returns -1 if no read succeeded.
++				 * but if a retry reason was given pass that on as no data read to the upper layers.
++				 */
++				if (status < 0)
++				{
++					if (BIO_should_retry(rdg->tlsOut->bio))
++						return 0;
++				}
++				return status;
+ 			}
+ 
+ 			readCount += (size_t)status;
+-- 
+2.52.0

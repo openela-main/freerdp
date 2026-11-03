@@ -1,0 +1,21 @@
+From c8fb55662c2f22e30d927432cf502657293b0999 Mon Sep 17 00:00:00 2001
+From: Jan Grulich <jgrulich@redhat.com>
+Date: Tue, 20 Oct 2026 12:04:27 +0200
+Subject: [PATCH] [core,gateway] clear completed RDG header state
+
+---
+ libfreerdp/core/gateway/rdg.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libfreerdp/core/gateway/rdg.c b/libfreerdp/core/gateway/rdg.c
+index 18dc73c25b14..00ee1780ea4f 100644
+--- a/libfreerdp/core/gateway/rdg.c
++++ b/libfreerdp/core/gateway/rdg.c
+@@ -2087,6 +2087,7 @@ static int rdg_read_data_packet(rdpRdg* rdg, BYTE* buffer, size_t size)
+ 			if (!status)
+ 				return -1;
+ 
++			rdg->nextHeaderLengthRead = 0;
+ 			return 0;
+ 		}
+ 

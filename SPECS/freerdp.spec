@@ -29,8 +29,8 @@
 
 Name:           freerdp
 Epoch:          2
-Version:        3.10.3
-Release:        12%{?dist}.14
+Version:        3.32.2
+Release:        1%{?dist}
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 
 # The effective license is Apache-2.0 but:
@@ -47,387 +47,22 @@ URL:            http://www.freerdp.com/
 Source0:        FreeRDP-%{version}-repack.tar.gz
 Source1:        freerdp_download_and_repack.sh
 
-# https://bugzilla.redhat.com/show_bug.cgi?id=2365232
-Patch0:         Initialize-function-pointers-after-resource-allocation.patch
-
-# https://issues.redhat.com/browse/RHEL-86251
-Patch1:         Limit-threadpool-to-16-threads.patch
-Patch2:         Use-default-threadpool.patch
-Patch3:         Default-minimum-thread-count.patch
-Patch4:         Limit-minimum-threadpool-size.patch
-
-# https://issues.redhat.com/browse/RHEL-73724
-Patch:          core-connection-print-SSL-warnings-after-init.patch
-
-# https://issues.redhat.com/browse/RHEL-140099
-Patch:          core-tcp-Try-next-DNS-entry-on-connect-failure.patch
-Patch:          core-tcp-Don-t-ignore-connect-errors.patch
-Patch:          core-tcp-Fix-PreferIPv6OverIPv4-fallback-to-IPv4-add.patch
-Patch:          core-tcp-fix-double-free-in-get_next_addrinfo.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/c4a7c371342edf0d307cea728f56d3302f0ab38c
-Patch:          gdi-gfx-properly-clamp-SurfaceToSurface.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/c4391827d7facfc874ca7f61a92afb82232a5748
-Patch:          codec-clear-fix-clear_resize_buffer-checks.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/f8688b57f6cfad9a0b05475a6afbde355ffab720
-Patch:          codec-clear-fix-off-by-one-length-check.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/1bab198a2edd0d0e6e1627d21a433151ea190500
-Patch:          codec-planar-fix-decoder-length-checks.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/243ecf804bb122e8e643a5c142ad5a49d7aa19ee
-Patch:          codec-clear-check-clear_decomress-glyphData.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/0421b53fcb4a80c95f51342e4a2c40c68a4101d3
-Patch:          client-x11-fix-double-free-in-case-of-invalid-pointe.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/52106a26726a2aba77aa6d86014d2eb3507f0783
-Patch:          cache-offscreen-invalidate-bitmap-before-free.patch
-
-# CVE-2026-22853
-# https://github.com/FreeRDP/FreeRDP/commit/19f48dc7d615984a24a9be89f50ef9eb8f9bdb6a
-Patch:          channels-rdpear-add-checks-for-itemSize.patch
-
-# CVE-2026-22855
-# https://github.com/FreeRDP/FreeRDP/commit/57c5647d98c2a026de8b681159cb188ca0439ef8
-Patch:          utils-smartcard-add-length-validity-checks.patch
-
-# CVE-2026-22858
-# https://github.com/FreeRDP/FreeRDP/commit/62a9e787edb2cfce9858fa4ceda5461680efc590
-Patch:          crypto-base64-ensure-char-is-singend.patch
-
-# CVE-2026-22859
-# https://github.com/FreeRDP/FreeRDP/commit/7b7e6de8fe427a2f01d331056774aec69710590b
-Patch:          channels-urbdrc-check-interface-indices-before-use.patch
-
-# CVE-2026-24678
-# https://github.com/FreeRDP/FreeRDP/commit/f3ab1a16139036179d9852745fdade18fec11600
-Patch:          channels-rdpecam-ensure-all-streams-are-stopped.patch
-
-# CVE-2026-26955
-# https://github.com/FreeRDP/FreeRDP/commit/7d8fdce2d0ef337cb86cb37fc0c436c905e04d77
-Patch:          codec-clear-fix-destination-checks.patch
-
-# CVE-2026-26965
-# https://github.com/FreeRDP/FreeRDP/commit/a0be5cb87d760bb1c803ad1bb835aa1e73e62abc
-Patch:          codec-planar-fix-missing-destination-bounds-checks.patch
-
-# CVE-2026-22852
-# https://github.com/FreeRDP/FreeRDP/commit/cd1ffa112cfbe1b40a9fd57e299a8ea12e23df0d
-Patch:          channels-audin-free-up-old-audio-formats.patch
-
-# CVE-2026-22854
-# https://github.com/FreeRDP/FreeRDP/commit/3da319570c8a6be0a79b3306f1ed354c4a943259
-Patch:          channels-drive-fix-constant-type.patch
-
-# CVE-2026-22856
-# https://github.com/FreeRDP/FreeRDP/commit/b35aa3614d32bff3fc1272cd7c4617f711fca1a4
-# https://github.com/FreeRDP/FreeRDP/commit/675c20f08f32ca5ec06297108bdf30147d6e2cd9
-Patch:          channels-serial-lock-list-dictionary.patch
-Patch:          channels-serial-explicitly-lock-serial-IrpThreads.patch
-
-# CVE-2026-23732
-# https://github.com/FreeRDP/FreeRDP/commit/3bc1eeb4f63ceec9a696af194e4c1ea0e67ff60c
-# https://github.com/FreeRDP/FreeRDP/commit/9f0eb3b7d43069a1e973464bcb43d1ef965ae65e
-Patch:          codec-color-add-freerdp_glyph_convert_ex.patch
-Patch:          gdi-graphics-Use-freerdp_glyph_convert_ex.patch
-
-# CVE-2026-23948
-# https://github.com/FreeRDP/FreeRDP/commit/4d44e3c097656a8b9ec696353647b0888ca45860
-Patch:          core-info-fix-missing-NULL-check.patch
-
-# CVE-2026-24491
-# https://github.com/FreeRDP/FreeRDP/commit/e02e052f6692550e539d10f99de9c35a23492db2
-# https://github.com/FreeRDP/FreeRDP/commit/cb7f295bc750de86480d60a3b58cebc56a57a1c4
-# https://github.com/FreeRDP/FreeRDP/commit/635ae3c8193256db01774fab5ff11bcae57aed6b
-# https://github.com/FreeRDP/FreeRDP/commit/e01cd85c8003a245ef9778f0eda4b9235514c201
-Patch:          channels-drdynvc-reset-channel_callback-before-close.patch
-Patch:          channels-drdynvc-check-pointer-before-reset.patch
-Patch:          channels-video-unify-error-handling.patch
-Patch:          channels-video-fix-wrong-cast.patch
-
-# CVE-2026-24675
-# https://github.com/FreeRDP/FreeRDP/commit/d676518809c319eec15911c705c13536036af2ae
-Patch:          channels-urbdrc-do-not-free-MsConfig-on-failure.patch
-
-# CVE-2026-24676
-# https://github.com/FreeRDP/FreeRDP/commit/026b81ae5831ac1598d8f7371e0d0996fac7db00
-Patch:          channels-audin-reset-audin-format.patch
-
-# CVE-2026-24679
-# https://github.com/FreeRDP/FreeRDP/commit/2d563a50be17c1b407ca448b1321378c0726dd31
-Patch:          channels-urbdrc-ensure-InterfaceNumber-is-within-ran.patch
-
-# CVE-2026-24681
-# https://github.com/FreeRDP/FreeRDP/commit/414f701464929c217f2509bcbd6d2c1f00f7ed73
-Patch:          channels-urbdrc-cancel-all-usb-transfers-on-channel-.patch
-
-# CVE-2026-24682
-# https://github.com/FreeRDP/FreeRDP/commit/1c5c74223179d425a1ce6dbbb6a3dd2a958b7aee
-# https://github.com/FreeRDP/FreeRDP/commit/668352a2e241ba017679c11a22ecbe29d0b17401
-Patch:          channels-audin-fix-audin_server_recv_formats-cleanup.patch
-Patch:          channels-audin-set-error-when-audio_format_read-fail.patch
-
-# CVE-2026-24683
-# https://github.com/FreeRDP/FreeRDP/commit/d9ca272dce7a776ab475e9b1a8e8c3d2968c8486
-Patch:          channels-ainput-lock-context-when-updating-listener.patch
-
-# CVE-2026-24684
-# https://github.com/FreeRDP/FreeRDP/commit/622bb7b4402491ca003f47472d0e478132673696
-# https://github.com/FreeRDP/FreeRDP/commit/afa6851dc80835d3101e40fcef51b6c5c0f43ea5
-Patch:          channels-rdpsnd-terminate-thread-before-free.patch
-Patch:          channel-rdpsnd-only-clean-up-thread-before-free.patch
-
-# CVE-2026-31806
-# https://github.com/FreeRDP/FreeRDP/commit/83d9aedea278a74af3e490ff5eeb889c016dbb2b
-# https://github.com/FreeRDP/FreeRDP/commit/169971607cece48384cb94632b829bd57336af0f
-Patch:          codec-nsc-limit-copy-area-in-nsc_process_message.patch
-Patch:          codec-nsc-fix-use-of-nsc_process_message.patch
-
-# https://github.com/FreeRDP/FreeRDP/commit/907ca47e40583a7788674bb2f06258edd0c34223
-Patch:          winpr-synch-increase-timeout-for-TestSynchCritical.patch
-
-# CVE-2026-33984
-# https://github.com/FreeRDP/FreeRDP/commit/a2dde6d9832cb032e8cf12cab3da84dafbab9006
-Patch:          codec-clear-update-CLEAR_VBAR_ENTRY-size-after-alloc.patch
-
-# CVE-2026-33983
-# https://github.com/FreeRDP/FreeRDP/commit/78188ab479c8e6eb9ba2475b3732c76b4bbe5425
-# https://github.com/FreeRDP/FreeRDP/commit/78677dc6e262f46937d00c3aa52381e4bb198fa5
-Patch:          codec-progressive-fail-progressive_rfx_quant_sub-on-invalid-values.patch
-Patch:          codec-progressive-fix-underflow-guard-in-progressive_rfx_quant_sub.patch
-
-# CVE-2026-26986
-# https://github.com/FreeRDP/FreeRDP/commit/b4f0f0a18fe53aa8d47d062f91471f4e9c5e0d51
-Patch:          client-x11-fix-xf_rail_window_common-cleanup.patch
-
-# CVE-2026-25997
-# https://github.com/FreeRDP/FreeRDP/commit/58409406afe7c2a8a71ed2dc8e22075be4f41c0c
-# https://github.com/FreeRDP/FreeRDP/commit/4c9f7e8a7129c8be15f6e2686559d3f17936677d
-Patch:          client-x11-fix-clipboard-update.patch
-Patch:          client-x11-fix-residual-race-in-xf_clipboard_formats_free.patch
-
-# CVE-2026-29775
-# https://github.com/FreeRDP/FreeRDP/commit/ffad58fd2b329efd81a3239e9d7e3c927b8e503f
-# https://github.com/FreeRDP/FreeRDP/commit/8270e0bb3d6726c947d57c93ba9caa92a052b557
-Patch:          cache-bitmap-overallocate-bitmap-cache.patch
-Patch:          cache-bitmap-initialize-overallocated-bitmap-cache-extra-slot.patch
-
-# CVE-2026-31884
-# https://github.com/FreeRDP/FreeRDP/commit/03b48b3601d867afccac1cdc6081de7a275edce7
-Patch:          codec-dsp-add-format-checks.patch
-
-# CVE-2026-31883
-# CVE-2026-31885
-# https://github.com/FreeRDP/FreeRDP/commit/16df2300e1e3f5a51f68fb1626429e58b531b7c8
-Patch:          codec-dsp-fix-array-bounds-checks.patch
-
-# CVE-2026-33987
-# https://github.com/FreeRDP/FreeRDP/commit/1a890eb43492b5eb707cb3dd6fc908f696e8fc1c
-Patch:          cache-persistent-update-persistent_cache_entry-size-after-realloc.patch
-
-# CVE-2026-33985
-# https://github.com/FreeRDP/FreeRDP/commit/c49d1ad43b8c7b32794d0250f2623c2dccd7ef25
-Patch:          codec-clear-update-clear_glyph_entry-count-after-alloc.patch
-
-# CVE-2026-33982
-# https://github.com/FreeRDP/FreeRDP/commit/a48dbde2c8a5b8b70a9d1c045d969a71afd6284c
-Patch:          cache-persist-use-winpr_aligned_calloc.patch
-
-# CVE-2026-25952
-# https://github.com/FreeRDP/FreeRDP/commit/1994e9844212a6dfe0ff12309fef520e888986b5
-# https://github.com/FreeRDP/FreeRDP/commit/78fd7f580d5f9e6d9d582d82e5ea96003844fbdf
-# https://github.com/FreeRDP/FreeRDP/commit/4ff57b68c2960fa414d03c78ff0e0660be1cc5bd
-# https://github.com/FreeRDP/FreeRDP/commit/a278ff74117444c635c50ffa5084ecf517171f5a
-Patch:          client-x11-lock-appwindow.patch
-Patch:          client-x11-improve-rails-window-locking.patch
-Patch:          client-x11-refactor-locking.patch
-Patch:          client-x11-fix-deadlock-on-output-expose.patch
-
-# CVE-2026-40033
-# https://github.com/FreeRDP/FreeRDP/commit/f951d8677ce6d34d9778b951f73b3072b01853cb
-Patch:          gdi-gfx-fix-bounds-checks.patch
-
-# CVE-2026-44421
-# https://github.com/FreeRDP/FreeRDP/commit/b877c8c0fef1b5ccda29ccd5a1a58696486545ed
-Patch:          gdi-gfx-ensure-the-cache-element-can-hold-the-data.patch
-
-# CVE-2026-45700
-# https://github.com/FreeRDP/FreeRDP/commit/4a065a941ae134a0433d1497c03b3c3eb91b9f85
-Patch:          codec-planar-fix-bounds-checks.patch
-
-# CVE-2026-44420
-# https://github.com/FreeRDP/FreeRDP/commit/0fba1f4dbff7585c9c99873d7c07d7dac46510c3
-# https://github.com/FreeRDP/FreeRDP/commit/d00dc5d3be369fb400344eb12e6882db2ee184f0
-Patch:          channels-cliprdr-validate-capabilitySetLength-in-server-caps.patch
-Patch:          channels-cliprdr-abort-on-duplicate-caps.patch
-
-# CVE-2026-44422
-# https://github.com/FreeRDP/FreeRDP/commit/668fcb49d4856fad28f685db54a572af2a284b50
-# https://github.com/FreeRDP/FreeRDP/commit/ae03a9ff981ce7be1ab09dba2cd319d54984f910
-Patch:          channels-rdpear-fix-ndr_read-checks.patch
-Patch:          channels-rdpear-disable-ndr-pointer-aliasing.patch
-
-# CVE-2026-55827
-# https://github.com/FreeRDP/FreeRDP/pull/12899
-# https://github.com/FreeRDP/FreeRDP/commit/7bbb52a193deed5943a041c9859db7ee036044a4
-# https://github.com/FreeRDP/FreeRDP/commit/3c4ae49f38aa0ea9b073025eb468131375e518ff
-Patch:          core-orders-add-codecID-checks.patch
-Patch:          gdi-graphics-fix-gdi_Bitmap_Decompress.patch
-
-# CVE-2026-64624
-# https://github.com/FreeRDP/FreeRDP/commit/e551807abfb87a8a1890c8b7e36fe421cd5596be
-# https://github.com/FreeRDP/FreeRDP/commit/22c5deea52404f51a13276b3abda44e1e60704cf
-Patch:          client-common-deprecate-cli-options-in-rdp-files.patch
-Patch:          client-common-deactivate-cli-parsing-in-rdp-files.patch
-
-# CVE-2026-64621
-# https://github.com/FreeRDP/FreeRDP/commit/7696267929ae8ba045c1bbe275b3915653828313
-Patch:          client-common-fix-double-free.patch
-
-# CVE-2026-64620
-# https://github.com/FreeRDP/FreeRDP/commit/27014741a8c22a34d3040c559c82f4ed82841bef
-Patch:          crypto-fix-out-buffer-check.patch
-
-# CVE-2026-68580
-# https://github.com/FreeRDP/FreeRDP/commit/3bf07d4470bbe42faf4ef8197c8fe1b6b759b00f
-# https://github.com/FreeRDP/FreeRDP/commit/9ca0aa69c4679b2be274ac59f30e76d0fa81aaf4
-Patch:          channels-audin-limit-FramesPerPacket.patch
-Patch:          channels-audin-tighten-parameter-checks.patch
-
-# CVE-2026-67299
-# https://github.com/FreeRDP/FreeRDP/commit/172edbddd24f33033b9eafae6ea1fff0641a24f4
-Patch:          core-message-fix-update_message_WindowIcon.patch
-
-# CVE-2026-67289
-# https://github.com/FreeRDP/FreeRDP/commit/f163b2d2080d922cb725800781f43f16bc2882c0
-# https://github.com/FreeRDP/FreeRDP/commit/ab5905cbada0d34cf85ffd32881cacaf8275744f
-# https://github.com/FreeRDP/FreeRDP/commit/1db16b4b121a1221c0454f7d223096cac87bf244
-Patch:          winpr-crt-add-functions-to-test-string.patch
-Patch:          core-redirection-check-redirection-values-for-validity.patch
-Patch:          core-redirection-relax-checks.patch
-
-# CVE-2026-67298
-# https://github.com/FreeRDP/FreeRDP/commit/b0deb3293b6d3d7506c29336ba14e3a2421c6210
-Patch:          channels-rail-ensure-valid-packet-when-reading-header.patch
-
-# CVE-2026-73242
-# https://github.com/FreeRDP/FreeRDP/commit/0adf5e30d01be84e190a359a7bdd37bc51d740cc
-Patch:          winpr-sspi-tighten-bounds-checks-for-kerberos.patch
-
-# CVE-2026-55194
-# https://github.com/FreeRDP/FreeRDP/commit/9f2da52c2341cc14a96ad12e69c5b83d0bcd8b5a
-Patch:          core-gateway-ensure-buffer-size-for-current-write.patch
-
-# CVE-2026-63633
-# https://github.com/FreeRDP/FreeRDP/commit/0ed1f95d36913581cf31124f94eb5843d4263eae
-Patch:          codec-dsp-fix-opus-buffer-checks.patch
-
-# CVE-2026-63652
-# https://github.com/FreeRDP/FreeRDP/commit/caf653c0ba1c75ec8f298d1baa59770102a5d14c
-Patch:          channels-rdpsnd-fix-free-of-RdpsndServerContext-clie.patch
-
-# CVE-2026-67288
-# https://github.com/FreeRDP/FreeRDP/commit/efe40e15d508f9754b7a3af851de4d2a0b1128d8
-Patch:          scard-handle-nullptr-for-LookupName.patch
-
-# CVE-2026-67291
-# https://github.com/FreeRDP/FreeRDP/commit/649efd9326b3c5b236d39467b6e7de92d70efb59
-Patch:          cache-glyph-tighten-bounds-checks.patch
-
-# CVE-2026-67296
-# https://github.com/FreeRDP/FreeRDP/commit/21417d6aca4a211b11418553a6884b2d4723da9b
-Patch:          channels-rdpei-add-RDPINPUT_MAX_PDU_LENGTH.patch
-
-# CVE-2026-67297
-# https://github.com/FreeRDP/FreeRDP/commit/494721493799ec62bb3f8a02d813c66b3f7a298c
-Patch:          core-gateway-http-add-chunked-response-size-check.patch
-
-# CVE-2026-67301
-# https://github.com/FreeRDP/FreeRDP/commit/d0bf57c721b28c50d698cd5ffebea46fe86f6507
-Patch:          core-message-fix-PolygonSC-and-PolygonCB-async-updates.patch
-
-# CVE-2026-67304
-# https://github.com/FreeRDP/FreeRDP/commit/39279e0c891cba1aa4a3bd2e6339e91d15329a99
-Patch:          utils-smartcard-update-struct-counts-after-allocation.patch
-
-# CVE-2026-69159
-# https://github.com/FreeRDP/FreeRDP/commit/75a1ec61d444179ea64a4ec0835214cb9c4f7c18
-Patch:          codec-planar-fix-input-checks.patch
-
-# CVE-2026-73241
-# https://github.com/FreeRDP/FreeRDP/commit/b05a9510787c83c87ffc5fa8d7cc9f06ed971695
-# https://github.com/FreeRDP/FreeRDP/commit/d620ba92b29efa61467cd9bf538b712479c7b8e3
-# https://github.com/FreeRDP/FreeRDP/commit/8cc061211378a621908ee7056977bc855e870c7c
-# https://github.com/FreeRDP/FreeRDP/commit/bab8c7126257d762a6a24ae90578d9c6fa5cd91a
-# https://github.com/FreeRDP/FreeRDP/commit/7bfd78bbd247e46771b8de36ece3ff76d22b114c
-Patch:          core-rdstls-tighten-state-and-bounds-checks.patch
-Patch:          core-rdstls-improve-version-handling.patch
-Patch:          core-rdstls-Fix-version-validation-macro.patch
-Patch:          core-rdstls-accept-matching-autoreconnect-cookies.patch
-Patch:          core-rdstls-validate-cookie-session-ID-length.patch
-
-# CVE-2026-55193
-# https://github.com/FreeRDP/FreeRDP/commit/a863ef1cf1cdabf9019280e5658f806e73bb50e8
-# https://github.com/FreeRDP/FreeRDP/commit/e4d8b856aa4d868c30ffbfa3ff430781197a0bfc
-Patch:          core-gateway-rpc-header-max-fragment-size-checks.patch
-Patch:          core-gateway-ensure-capacity-in-rpc_channel_read.patch
-
-# CVE-2026-91949
-# https://github.com/FreeRDP/FreeRDP/commit/0819472027396c539b58d02ca5ab105698dd590f
-Patch:          core-connection-abort-after-PROTOCOL_FAILED_NEGO.patch
-
-# CVE-2026-85089
-# https://github.com/FreeRDP/FreeRDP/commit/056cede398d71c1f2540baebc26ec3327a249301
-Patch:          core-info-write-zero-to-info-data-padding.patch
-
-# CVE-2026-91946
-# https://github.com/FreeRDP/FreeRDP/commit/483c9388119f06bac420d92053cff9ef94e83bea
-Patch:          winpr-utils-initialize-wStream-buffer-with-zero.patch
-
-# CVE-2026-91947
-# https://github.com/FreeRDP/FreeRDP/commit/a41558a3da0d59da3787e792c028e8953324e71a
-Patch:          core-server-lock-dynamic-channel-list-while-parsing.patch
-
-# CVE-2026-91950
-# https://github.com/FreeRDP/FreeRDP/commit/2b1dd55874b41cf4d9458ba03d04a79b05721420
-Patch:          utils-rdpdr-force-64bit-arithmetic-in-rdpdr_dump_pac.patch
-
-# CVE-2026-91953
-# CVE-2026-91964
-# https://github.com/FreeRDP/FreeRDP/commit/70d05577a3a161e1fa2666ab7dadb01d14661e94
-# https://github.com/FreeRDP/FreeRDP/commit/64893d755ead9483b69cacb3378340e9a206def5
-# https://github.com/FreeRDP/FreeRDP/commit/fa757caea453cbe78d74c95096684b8f96a3d78c
-Patch:          core-nego-fix-capacity-checks.patch
-Patch:          core-nego-fix-leak-in-case-of-failure.patch
-Patch:          core-nego-fix-resource-leak.patch
-
-# CVE-2026-91954
-# https://github.com/FreeRDP/FreeRDP/commit/5c12d4eff64f9cba9e7710341b712cf426d399c3
-Patch:          codec-nsc-add-missing-NULL-check.patch
-
-# CVE-2026-91956
-# https://github.com/FreeRDP/FreeRDP/commit/5372255a1dd2184b5ffebb934fab974cea328dda
-Patch:          channel-urbdrc-check-func_get_ep_desc-for-validity.patch
-
-# CVE-2026-91959
-# CVE-2026-91960
-# https://github.com/FreeRDP/FreeRDP/commit/c45ee2417e0f83b69327d5054889274e29c81868
-# https://github.com/FreeRDP/FreeRDP/commit/118afc0b954ba9d5632b7836ad24e454555ed113
-# https://github.com/FreeRDP/FreeRDP/commit/3b286a923d3fa933ba0e7dfee2df08116a6204c1
-# https://github.com/FreeRDP/FreeRDP/commit/a8469450fe2828f211cad60a23ee23fefb6e8e00
-# https://github.com/FreeRDP/FreeRDP/commit/75a215ac391eab9cf7d0cf212f47f2cfd1169b37
-Patch:          core-gateway-limit-websocket-request-size.patch
-Patch:          allocations-fix-growth-of-preallocated-buffers.patch
-Patch:          winpr-stream-improve-return-checks-in-Stream_EnsureCapacity.patch
-Patch:          winpr-utils-abort-Stream_Capacity-checks-early.patch
-Patch:          core-gateway-fix-missing-length-check.patch
-
-# CVE-2026-91963
-# https://github.com/FreeRDP/FreeRDP/commit/d7f677e3cf836e71bc52c08177bbba8c889a6f8e
-Patch:          urbdrc-Fix-completion-framing-for-transfer-requests.patch
+# Fix gateway freezes and busy loops (upstream issues #13695 and #13698).
+# https://github.com/FreeRDP/FreeRDP/commit/fb2cff1ed2c4fc8171a35324ca7ab30edc64b971
+Patch:          core-gateway-only-yield-after-failed-read-write.patch
+# https://github.com/FreeRDP/FreeRDP/commit/ae5f3929f0aaffc92c187bb19cd2e75797a75802
+Patch:          core-gateway-fix-rdg-packet-handling.patch
+
+# Required follow-up: preserve partial headers across nonblocking reads (#13760).
+# https://github.com/FreeRDP/FreeRDP/commit/08c4a07c1c8d10a8b02233e382df8c630237fa6d
+Patch:          core-gateway-remember-partly-read-header.patch
+# Reset completed header state before control-packet dispatch
+# https://github.com/FreeRDP/FreeRDP/commit/c8fb55662c2f22e30d927432cf502657293b0999
+Patch:          core-gateway-reset-control-header.patch
+
+# Keep WebSocket context and chunked-transfer decoder state independent.
+# https://github.com/FreeRDP/FreeRDP/commit/503327388e765a5c339e816ba7c1733cb9bf58e2
+Patch:          core-gateway-keep-websocket-and-chunked-state-apart.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -438,6 +73,7 @@ BuildRequires:  gsm-devel
 BuildRequires:  lame-devel
 BuildRequires:  libicu-devel
 BuildRequires:  libjpeg-turbo-devel
+BuildRequires:  turbojpeg-devel
 BuildRequires:  libX11-devel
 BuildRequires:  libXcursor-devel
 BuildRequires:  libXdamage-devel
@@ -466,6 +102,8 @@ BuildRequires:  pkgconfig(cairo)
 BuildRequires:  pkgconfig(krb5)
 BuildRequires:  pkgconfig(fdk-aac)
 BuildRequires:  pkgconfig(fuse3)
+BuildRequires:  pkgconfig(libcbor)
+BuildRequires:  pkgconfig(libfido2)
 BuildRequires:  pkgconfig(libpcsclite)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(libsystemd)
@@ -562,6 +200,10 @@ find . -name "*.c" -exec chmod 664 {} \;
 %build
 %cmake \
     -DBUILD_TESTING=ON \
+    -DCHANNEL_RDP2TCP=ON \
+    -DCHANNEL_RDP2TCP_CLIENT=ON \
+    -DCHANNEL_RDPEWA=ON \
+    -DCHANNEL_RDPEWA_CLIENT=ON \
     -DCMAKE_SKIP_INSTALL_RPATH=ON \
     -DCMAKE_INSTALL_LIBDIR:PATH=%{_lib} \
     -DWITH_ALSA=ON \
@@ -590,6 +232,7 @@ find . -name "*.c" -exec chmod 664 {} \;
     -DWITH_PCSC=ON \
     -DWITH_PKCS11=ON \
     -DWITH_PULSE=ON \
+    -DWITH_RDTK=ON \
     -DWITH_SAMPLE=OFF \
     -DWITH_SERVER=%{?_with_server:ON}%{?!_with_server:OFF} \
     -DWITH_SERVER_INTERFACE=%{?_with_server:ON}%{?!_with_server:OFF} \
@@ -684,6 +327,7 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/libuwac0.so.*
 }
 %{_libdir}/librdtk0.so.*
+%{_mandir}/man7/freerdp.*
 %{_mandir}/man7/wlog.*
 
 %files devel
@@ -752,6 +396,15 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools3.pc
 
 %changelog
+* Tue Oct 20 2026 Jan Grulich <jgrulich@redhat.com> - 2:3.32.2-1
+- Update to 3.32.2
+- Backport gateway freeze and busy-loop fixes, including partial-header handling
+- Reset completed RDG header state before control-packet dispatch
+- Keep WebSocket and chunked-transfer decoder state separate
+  Resolves: RHEL-277442
+  Resolves: RHEL-282285, RHEL-283665, RHEL-283685, RHEL-283719, RHEL-285001
+  Resolves: RHEL-285015, RHEL-285030, RHEL-285031, RHEL-286605, RHEL-288167
+
 * Wed Sep 30 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.14
 - Backport several CVE fixes (CVE-2026-85089, CVE-2026-91946, CVE-2026-91947,
   CVE-2026-91950, CVE-2026-91953, CVE-2026-91954, CVE-2026-91956,

@@ -1,0 +1,38 @@
+From fb2cff1ed2c4fc8171a35324ca7ab30edc64b971 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 15 Oct 2026 10:32:57 +0200
+Subject: [PATCH] [core,gateway] only yield after failed read/write
+
+When a BIO_read or BIO_write fails or does not read/write then just
+yield and retry after that. This avoids high CPU utilization but keeps
+the http handling responsive.
+
+Upstream-Status: Backport [https://github.com/FreeRDP/FreeRDP/commit/fb2cff1ed2c4fc8171a35324ca7ab30edc64b971]
+Upstream-PR: https://github.com/FreeRDP/FreeRDP/pull/13736
+Bug: https://github.com/FreeRDP/FreeRDP/issues/13695
+---
+ libfreerdp/core/gateway/http.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/gateway/http.c b/libfreerdp/core/gateway/http.c
+index 9e3bf9a88d67..d20d8d4eed72 100644
+--- a/libfreerdp/core/gateway/http.c
++++ b/libfreerdp/core/gateway/http.c
+@@ -1124,7 +1124,6 @@ BOOL sleep_or_timeout_(BIO* bio, rdpContext* context, UINT64 startMS, UINT32 tim
+ 	WINPR_ASSERT(bio);
+ 	WINPR_ASSERT(context);
+ 
+-	USleep(100);
+ 	const UINT64 nowMS = GetTickCount64();
+ 	if (nowMS - startMS > timeoutMS)
+ 	{
+@@ -1149,6 +1148,7 @@ BOOL sleep_or_timeout_(BIO* bio, rdpContext* context, UINT64 startMS, UINT32 tim
+ 	if (freerdp_shall_disconnect_context(context))
+ 		return TRUE;
+ 
++	SwitchToThread();
+ 	return FALSE;
+ }
+ 
+-- 
+2.52.0
