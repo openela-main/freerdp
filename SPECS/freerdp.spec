@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        14%{?dist}
+Release:        15%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -261,6 +261,20 @@ Patch64:        core-gateway-fix-missing-length-check.patch
 # CVE-2026-91963
 # https://github.com/FreeRDP/FreeRDP/commit/d7f677e3cf836e71bc52c08177bbba8c889a6f8e
 Patch65:        urbdrc-Fix-completion-framing-for-transfer-requests.patch
+
+# CVE-2026-109242
+# https://github.com/FreeRDP/FreeRDP/commit/2e59cd87918f776dbacf791bd960582b8662c88b
+# https://github.com/FreeRDP/FreeRDP/commit/4f4e546cd42f97af4d27894dceacd85cc16579d0
+Patch66:        memory-prefer-winpr_aligned_calloc.patch
+Patch67:        Fixed-initial-alpha-values-for-codec-buffers.patch
+
+# CVE-2026-110837
+# https://github.com/FreeRDP/FreeRDP/commit/1248aa1e4e00dfb84395d7649788035d4de80b4a
+Patch68:        codec-dsp-fix-mp3-buffer-use.patch
+
+# CVE-2026-111880
+# https://github.com/FreeRDP/FreeRDP/commit/52ffa3ca8cbdabaef6d1224de77dd18b604fd1f3
+Patch69:        winpr-sspi-fix-ntlm_computeMicValue-input-validation.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -519,6 +533,11 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
+* Tue Oct 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-15
+- Backport several CVE fixes (CVE-2026-109242, CVE-2026-110837,
+  CVE-2026-111880)
+  Resolves: RHEL-282289, RHEL-283715, RHEL-286595
+
 * Fri Sep 18 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-14
 - Backport several CVE fixes (CVE-2026-91953, CVE-2026-91954, CVE-2026-91956,
   CVE-2026-91959, CVE-2026-91963, CVE-2026-91964)
