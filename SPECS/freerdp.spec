@@ -27,7 +27,7 @@
 
 Name:           freerdp
 Version:        2.11.7
-Release:        7%{?dist}.9
+Release:        13%{?dist}
 Epoch:          2
 Summary:        Free implementation of the Remote Desktop Protocol (RDP)
 License:        ASL 2.0
@@ -198,6 +198,14 @@ Patch:          client-x11-fix-deadlock-on-output-expose.patch
 # https://github.com/FreeRDP/FreeRDP/commit/4a065a941ae134a0433d1497c03b3c3eb91b9f85
 Patch:          codec-planar-fix-bounds-checks.patch
 
+# CVE-2026-68580
+# https://github.com/FreeRDP/FreeRDP/commit/3bf07d4470bbe42faf4ef8197c8fe1b6b759b00f
+Patch:          channels-audin-limit-FramesPerPacket.patch
+
+# CVE-2026-67299
+# https://github.com/FreeRDP/FreeRDP/commit/172edbddd24f33033b9eafae6ea1fff0641a24f4
+Patch:          core-message-fix-update_message_WindowIcon.patch
+
 # CVE-2026-64624
 # https://github.com/FreeRDP/FreeRDP/commit/22c5deea52404f51a13276b3abda44e1e60704cf
 Patch:          client-common-deactivate-cli-parsing-in-rdp-files.patch
@@ -209,14 +217,6 @@ Patch:          client-common-deactivate-cli-parsing-in-rdp-files.patch
 Patch:          winpr-crt-add-functions-to-test-string.patch
 Patch:          core-redirection-check-redirection-values-for-validity.patch
 Patch:          core-redirection-relax-checks.patch
-
-# CVE-2026-68580
-# https://github.com/FreeRDP/FreeRDP/commit/3bf07d4470bbe42faf4ef8197c8fe1b6b759b00f
-Patch:          channels-audin-limit-FramesPerPacket.patch
-
-# CVE-2026-67299
-# https://github.com/FreeRDP/FreeRDP/commit/172edbddd24f33033b9eafae6ea1fff0641a24f4
-Patch:          core-message-fix-update_message_WindowIcon.patch
 
 # CVE-2026-55194
 # https://github.com/FreeRDP/FreeRDP/commit/9f2da52c2341cc14a96ad12e69c5b83d0bcd8b5a
@@ -233,51 +233,6 @@ Patch:          cache-glyph-tighten-bounds-checks.patch
 # CVE-2026-67301
 # https://github.com/FreeRDP/FreeRDP/commit/d0bf57c721b28c50d698cd5ffebea46fe86f6507
 Patch:          core-message-fix-PolygonSC-and-PolygonCB-async-updates.patch
-
-# CVE-2026-55193
-# https://github.com/FreeRDP/FreeRDP/commit/a863ef1cf1cdabf9019280e5658f806e73bb50e8
-# https://github.com/FreeRDP/FreeRDP/commit/e4d8b856aa4d868c30ffbfa3ff430781197a0bfc
-Patch:          core-gateway-rpc-header-max-fragment-size-checks.patch
-Patch:          core-gateway-ensure-capacity-in-rpc_channel_read.patch
-
-# CVE-2026-91953
-# CVE-2026-91964
-# https://github.com/FreeRDP/FreeRDP/commit/70d05577a3a161e1fa2666ab7dadb01d14661e94
-# https://github.com/FreeRDP/FreeRDP/commit/64893d755ead9483b69cacb3378340e9a206def5
-# https://github.com/FreeRDP/FreeRDP/commit/fa757caea453cbe78d74c95096684b8f96a3d78c
-Patch:          core-nego-fix-capacity-checks.patch
-Patch:          core-nego-fix-leak-in-case-of-failure.patch
-Patch:          core-nego-fix-resource-leak.patch
-
-# CVE-2026-91954
-# https://github.com/FreeRDP/FreeRDP/commit/5c12d4eff64f9cba9e7710341b712cf426d399c3
-Patch:          codec-nsc-add-missing-NULL-check.patch
-
-# CVE-2026-91956
-# https://github.com/FreeRDP/FreeRDP/commit/5372255a1dd2184b5ffebb934fab974cea328dda
-Patch:          channel-urbdrc-check-func_get_ep_desc-for-validity.patch
-
-# CVE-2026-91959
-# https://github.com/FreeRDP/FreeRDP/commit/75a215ac391eab9cf7d0cf212f47f2cfd1169b37
-Patch:          core-gateway-fix-missing-length-check.patch
-
-# CVE-2026-91963
-# https://github.com/FreeRDP/FreeRDP/commit/d7f677e3cf836e71bc52c08177bbba8c889a6f8e
-Patch:          urbdrc-Fix-completion-framing-for-transfer-requests.patch
-
-# CVE-2026-109242
-# https://github.com/FreeRDP/FreeRDP/commit/2e59cd87918f776dbacf791bd960582b8662c88b
-# https://github.com/FreeRDP/FreeRDP/commit/4f4e546cd42f97af4d27894dceacd85cc16579d0
-Patch:          memory-prefer-winpr_aligned_calloc.patch
-Patch:          Fixed-initial-alpha-values-for-codec-buffers.patch
-
-# CVE-2026-110837
-# https://github.com/FreeRDP/FreeRDP/commit/1248aa1e4e00dfb84395d7649788035d4de80b4a
-Patch:          codec-dsp-fix-mp3-buffer-use.patch
-
-# CVE-2026-111880
-# https://github.com/FreeRDP/FreeRDP/commit/52ffa3ca8cbdabaef6d1224de77dd18b604fd1f3
-Patch:          winpr-sspi-fix-ntlm_computeMicValue-input-validation.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -536,40 +491,25 @@ find %{buildroot} -name "*.a" -delete
 %{_libdir}/pkgconfig/winpr-tools2.pc
 
 %changelog
-* Tue Oct 27 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-7.9
-- Backport several CVE fixes (CVE-2026-109242, CVE-2026-110837,
-  CVE-2026-111880)
-  Resolves: RHEL-282296, RHEL-283722, RHEL-286609
-
-* Tue Sep 15 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.8
-- Backport several CVE fixes (CVE-2026-91953, CVE-2026-91954, CVE-2026-91956,
-  CVE-2026-91959, CVE-2026-91963, CVE-2026-91964)
-  Resolves: RHEL-260758, RHEL-260785, RHEL-260803, RHEL-260849, RHEL-260871
-  Resolves: RHEL-260902
-
-* Tue Aug 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.7
-- Fix RPC gateway fragment size and capacity checks (CVE-2026-55193)
-  Resolves: RHEL-247356
-
-* Sat Aug 22 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.6
+* Thu Sep 03 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-13
 - Backport several CVE fixes (CVE-2026-55194, CVE-2026-67288, CVE-2026-67291,
   CVE-2026-67301)
-  Resolves: RHEL-225096, RHEL-227729, RHEL-236060, RHEL-246241
+  Resolves: RHEL-225099, RHEL-227749, RHEL-236059, RHEL-246252
 
-* Wed Aug 05 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.5
+* Mon Aug 17 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-12
 - Backport several CVE fixes (CVE-2026-64624, CVE-2026-67289, CVE-2026-67299,
   CVE-2026-68580)
-  Resolves: RHEL-213169, RHEL-222785, RHEL-222966, RHEL-223605
+  Resolves: RHEL-213171, RHEL-222788, RHEL-223001, RHEL-223611
 
-* Wed Jun 24 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-7.4
+* Wed Jun 24 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:2.11.7-11
 - Fix incorrect bounds checks in planar codec (CVE-2026-45700)
-  Resolves: RHEL-186991
+  Resolves: RHEL-186992
 
-* Tue May 05 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-7.3
+* Tue May 05 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-10
 - Lock appWindow to fix use-after-free in RAIL mode (CVE-2026-25952)
-  Resolves: RHEL-159860
+  Resolves: RHEL-168464
 
-* Tue Apr 28 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-7.2
+* Tue Apr 28 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-9
 - Fix double free in xf_rail_window_common cleanup (CVE-2026-26986)
 - Fix growth of preallocated buffers (CVE-2026-27951)
 - Fix heap-buffer-overflow in bitmap_cache_put (CVE-2026-29775)
@@ -577,13 +517,13 @@ find %{buildroot} -name "*.a" -delete
 - Fix DSP array bounds checks (CVE-2026-31883)
 - Fix DSP array bounds checks (CVE-2026-31885)
 - Update CLEAR_GLYPH_ENTRY::count after alloc (CVE-2026-33985)
-  Resolves: RHEL-159816, RHEL-155478, RHEL-161047, RHEL-161482
-  Resolves: RHEL-161519, RHEL-161085, RHEL-168463
+  Resolves: RHEL-168466, RHEL-169222, RHEL-161048, RHEL-161483
+  Resolves: RHEL-161520, RHEL-161086, RHEL-167804
 
-* Tue Apr 14 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-7.1
+* Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-8
 - Update CLEAR_VBAR_ENTRY size after alloc (CVE-2026-33984)
 - Fail progressive_rfx_quant_sub on invalid values (CVE-2026-33983)
-  Resolves: RHEL-163097, RHEL-163113
+  Resolves: RHEL-162960, RHEL-162986
 
 * Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:2.11.7-7
 - Fix use of nsc_process_message
