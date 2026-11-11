@@ -401,83 +401,58 @@ find %{buildroot} -name "*.a" -delete
 - Backport gateway freeze and busy-loop fixes, including partial-header handling
 - Reset completed RDG header state before control-packet dispatch
 - Keep WebSocket and chunked-transfer decoder state separate
-  Resolves: RHEL-277442
-  Resolves: RHEL-282285, RHEL-283665, RHEL-283685, RHEL-283719, RHEL-285001
-  Resolves: RHEL-285015, RHEL-285030, RHEL-285031, RHEL-286605, RHEL-288167
+  Resolves: RHEL-277443
+  Resolves: RHEL-282664, RHEL-283680, RHEL-283687, RHEL-283716, RHEL-285000
+  Resolves: RHEL-285013, RHEL-285032, RHEL-285056, RHEL-286608, RHEL-288165
 
-* Wed Sep 30 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.14
-- Backport several CVE fixes (CVE-2026-85089, CVE-2026-91946, CVE-2026-91947,
-  CVE-2026-91950, CVE-2026-91953, CVE-2026-91954, CVE-2026-91956,
-  CVE-2026-91959, CVE-2026-91960, CVE-2026-91963, CVE-2026-91964)
-  Resolves: RHEL-253892, RHEL-260716, RHEL-260750, RHEL-260763, RHEL-260778
-  Resolves: RHEL-260794, RHEL-260807, RHEL-260842, RHEL-260856, RHEL-260891
-  Resolves: RHEL-260912
+* Fri Oct 09 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.28.0-4.2
+- Backport several CVE fixes (CVE-2026-85089, CVE-2026-91945, CVE-2026-91946,
+  CVE-2026-91947, CVE-2026-91948, CVE-2026-91950, CVE-2026-91951,
+  CVE-2026-91953, CVE-2026-91954, CVE-2026-91956, CVE-2026-91959,
+  CVE-2026-91960, CVE-2026-91963, CVE-2026-91964)
+  Resolves: RHEL-253893, RHEL-260717, RHEL-260746, RHEL-260765, RHEL-260775,
+  Resolves: RHEL-260779, RHEL-260796, RHEL-260809, RHEL-260822, RHEL-260823,
+  Resolves: RHEL-260845, RHEL-260861, RHEL-260893, RHEL-260904
 
-* Mon Sep 21 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.13
+* Mon Sep 21 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.28.0-4.1
 - Abort after PROTOCOL_FAILED_NEGO (CVE-2026-91949)
-  Resolves: RHEL-264913
+  Resolves: RHEL-264911
 
-* Mon Sep 14 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.12
-- Fix several regressions in CVE-2026-73241
-  Resolves: RHEL-257781
+* Tue Sep 08 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.28.0-4
+- Backport several CVE fixes (CVE-2026-67288, CVE-2026-67291, CVE-2026-67296,
+  CVE-2026-67297, CVE-2026-67301, CVE-2026-67304, CVE-2026-69159,
+  CVE-2026-73241)
+- Fix crash when kerberos initialization fails
+  Resolves: RHEL-224186, RHEL-224251, RHEL-225095, RHEL-225224, RHEL-227731
+  Resolves: RHEL-236055, RHEL-238532, RHEL-245651
 
-* Tue Aug 25 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.11
-- Fix RPC gateway fragment size and capacity checks (CVE-2026-55193)
-  Resolves: RHEL-247346
-
-* Tue Aug 25 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.10
-- Backport several CVE fixes (CVE-2026-55194, CVE-2026-63633, CVE-2026-63652,
-  CVE-2026-67288, CVE-2026-67291, CVE-2026-67296, CVE-2026-67297,
-  CVE-2026-67301, CVE-2026-67304, CVE-2026-69159, CVE-2026-73241)
-  Resolves: RHEL-245652, RHEL-245635, RHEL-245599, RHEL-245539, RHEL-238534
-  Resolves: RHEL-236056, RHEL-227734, RHEL-225225, RHEL-225097, RHEL-224250
-  Resolves: RHEL-224185
-
-* Mon Aug 17 2026 RHEL Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.9
+* Tue Sep 01 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.28.0-3
 - Backport several CVE fixes (CVE-2026-67298, CVE-2026-73242)
-  Resolves: RHEL-224050, RHEL-238931
+  Resolves: RHEL-224047, RHEL-238930
 
-* Tue Aug 04 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.8
-- Backport several CVE fixes (CVE-2026-64620, CVE-2026-64621, CVE-2026-64624,
-  CVE-2026-67289, CVE-2026-67299, CVE-2026-68580)
-  Resolves: RHEL-212621, RHEL-212978, RHEL-213168, RHEL-222783, RHEL-222983,
-  Resolves: RHEL-223604
+* Mon Aug 17 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.28.0-2
+- Backport several CVE fixes (CVE-2026-67289, CVE-2026-67299, CVE-2026-68580)
+  Resolves: RHEL-222792, RHEL-222965, RHEL-223607
 
-* Sat Jul 11 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 2:3.10.3-12.7
-- Add codecID checks for CACHE_BITMAP_V3_ORDER (CVE-2026-55827)
-- Fix boundary checks in gdi_Bitmap_Decompress (CVE-2026-55827)
-  Resolves: RHEL-194327
+* Mon Jul 13 2026 Ondrej Holy <oholy@redhat.com> - 2:3.28.0-1
+- Update to 3.28.0 (CVE-2026-57156, CVE-2026-57157, CVE-2026-57158)
+  Resolves: RHEL-171999
 
-* Mon Jun 29 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.6
-- Backport several CVE fixes (CVE-2026-40033, CVE-2026-44420, CVE-2026-44421,
-  CVE-2026-44422, CVE-2026-45700)
-  Resolves: RHEL-186978, RHEL-186967, RHEL-186958, RHEL-186950, RHEL-186093
+* Wed Jul 01 2026 Ondrej Holy <oholy@redhat.com> - 2:3.27.1-2
+- Add RDP Smart Card Redirection Support
+  Resolves: RHEL-171999
 
-* Tue May 05 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.5
-- Lock appWindow to fix use-after-free in RAIL mode (CVE-2026-25952)
-  Resolves: RHEL-159848
+* Wed Jul 01 2026 Ondrej Holy <oholy@redhat.com> - 2:3.27.1-1
+- Update to 3.27.1
+  Resolves: RHEL-186097, RHEL-186938, RHEL-186960, RHEL-186965, RHEL-186980
 
-* Wed Apr 29 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.4
-- Fix double free in xf_rail_window_common cleanup (CVE-2026-26986)
-- Fix clipboard use-after-free during auto-reconnect (CVE-2026-25997)
-- Fix heap-buffer-overflow in bitmap_cache_put (CVE-2026-29775)
-- Add DSP format checks (CVE-2026-31884)
-- Fix DSP array bounds checks (CVE-2026-31883)
-- Fix DSP array bounds checks (CVE-2026-31885)
-- Update PERSISTENT_CACHE_ENTRY::size after realloc (CVE-2026-33987)
-- Update CLEAR_GLYPH_ENTRY::count after alloc (CVE-2026-33985)
-- Use winpr_aligned_calloc in persistent cache (CVE-2026-33982)
-  Resolves: RHEL-159804, RHEL-159660, RHEL-161034, RHEL-161469
-  Resolves: RHEL-161505, RHEL-161072, RHEL-163654, RHEL-168462, RHEL-162931
+* Mon Jun 01 2026 Ondrej Holy <oholy@redhat.com> - 2:3.24.2-2
+- Improve FIPS mode support
+  Resolves: RHEL-140202
 
-* Fri Apr 10 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.2
-- Update CLEAR_VBAR_ENTRY size after alloc (CVE-2026-33984)
-- Fail progressive_rfx_quant_sub on invalid values (CVE-2026-33983)
-  Resolves: RHEL-162947, RHEL-162963
-
-* Thu Apr 09 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12.1
-- Rebuilt for errata
-  Resolves: RHEL-155980
+* Thu Apr 09 2026 Ondrej Holy <oholy@redhat.com> - 2:3.24.2-1
+- Update to 3.24.2
+  Resolves: RHEL-80426
 
 * Tue Mar 31 2026 Ondrej Holy <oholy@redhat.com> - 2:3.10.3-12
 - Fix use of nsc_process_message
