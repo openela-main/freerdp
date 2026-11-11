@@ -1,0 +1,22 @@
+From b2f54c54912935b5f6b47a92cf75c82ee37efcd0 Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 13 Aug 2026 09:52:18 +0200
+Subject: [PATCH] [core,gateway] fix missing length check
+
+---
+ libfreerdp/core/gateway/rts.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/gateway/rts.c b/libfreerdp/core/gateway/rts.c
+index ccbe0beca..9ce6156ca 100644
+--- a/libfreerdp/core/gateway/rts.c
++++ b/libfreerdp/core/gateway/rts.c
+@@ -665,7 +665,7 @@ static BOOL rts_read_result(wStream* s, p_result_t* result)
+ 	assert(s);
+ 	assert(result);
+ 
+-	if (Stream_GetRemainingLength(s) < 2)
++	if (Stream_GetRemainingLength(s) < 4)
+ 		return FALSE;
+ 	Stream_Read_UINT16(s, result->result);
+ 	Stream_Read_UINT16(s, result->reason);

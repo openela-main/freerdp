@@ -1,0 +1,22 @@
+From 624c43d657c467eac1b670b6db46bbd0d876b38b Mon Sep 17 00:00:00 2001
+From: Armin Novak <armin.novak@thincast.com>
+Date: Thu, 27 Aug 2026 12:49:40 +0200
+Subject: [PATCH] [core,nego] fix resource leak
+
+---
+ libfreerdp/core/nego.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libfreerdp/core/nego.c b/libfreerdp/core/nego.c
+index 6034f973d..fab34641b 100644
+--- a/libfreerdp/core/nego.c
++++ b/libfreerdp/core/nego.c
+@@ -884,7 +884,7 @@ BOOL nego_send_negotiation_request(rdpNego* nego)
+ 		{
+ 			WLog_DBG(TAG, "Adding terminating CRLF to routing token");
+ 			if (!Stream_EnsureRemainingCapacity(s, 2))
+-				return FALSE;
++				goto fail;
+ 			Stream_Write_UINT8(s, 0x0D); /* CR */
+ 			Stream_Write_UINT8(s, 0x0A); /* LF */
+ 		}
